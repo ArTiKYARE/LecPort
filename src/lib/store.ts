@@ -1,193 +1,194 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Material, MATERIALS_SEED, Subject, SUBJECTS_SEED,
-  LessonType, Section, SECTIONS_SEED, SectionColors, SECTION_COLORS_DEFAULT,
-} from './types';
+import type { Material, Subject, Section, SectionColors } from './types';
 import { useAuth } from './auth';
 
-const LS_MATERIALS = 'lecport_materials_v1';
-const LS_SUBJECTS = 'lecport_subjects_v1';
-const LS_COLORS = 'lecport_section_colors_v1';
-const LS_SECTIONS = 'lecport_sections_v1';
-const LS_SUBJ_COLORS = 'lecport_subject_colors_v1';
+export type CatalogSnapshot = {
+  sections: Section[];
+  subjects: Subject[];
+  materials: Material[];
+  sectionColors: SectionColors;
+  subjectColors: Record<string, string>;
+};
 
-function readJson<T>(key: string, fallback: T): T {
+export type LegacyData = {
+  sections: Section[] | null;
+  subjects: Subject[] | null;
+  materials: Material[] | null;
+};
+
+const EMPTY: CatalogSnapshot = { sections: [], subjects: [], materials: [], sectionColors: {}, subjectColors: {} };
+
+const LS_LEGACY = [
+  'lecport_materials_v1',
+  'lecport_subjects_v1',
+  'lecport_sections_v1',
+  'lecport_section_colors_v1',
+  'lecport_subject_colors_v1',
+] as const;
+
+function readLegacy<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
+    if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
+/**
+ * Каталог хранится на сервере (data/catalog.json) — добавляйте через /admin,
+ * изменения будут видны всем пользователям, а не только в этом браузере.
+ */
 export function useCatalog() {
-  const [materials, setMaterials] = useState<Material[]>(MATERIALS_SEED);
-  const [subjects, setSubjects] = useState<Subject[]>(SUBJECTS_SEED);
-  const [sections, setSections] = useState<Section[]>(SECTIONS_SEED);
-  const [sectionColors, setSectionColorsState] = useState<SectionColors>(SECTION_COLORS_DEFAULT);
-  const [subjectColors, setSubjectColorsState] = useState<Record<string, string>>({});
+  const [state, setState] = useState<CatalogSnapshot | null>(null);
+  const [legacy, setLegacy] = useState<LegacyData | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  const apply = (snap: CatalogSnapshot) => {
+    setState({ ...snap, sectionColors: { ...snap.sectionColors }, subjectColors: { ...snap.subjectColors } });
+  };
+
+  const load = useCallback(async () => {
     try {
-      const m = localStorage.getItem(LS_MATERIALS);
-      const s = localStorage.getItem(LS_SUBJECTS);
-      const c = localStorage.getItem(LS_COLORS);
-      const sec = localStorage.getItem(LS_SECTIONS);
-      const sjc = localStorage.getItem(LS_SUBJ_COLORS);
-      if (m) setMaterials(JSON.parse(m));
-      else localStorage.setItem(LS_MATERIALS, JSON.stringify(MATERIALS_SEED));
-      if (s) setSubjects(JSON.parse(s));
-      else localStorage.setItem(LS_SUBJECTS, JSON.stringify(SUBJECTS_SEED));
-      if (sec) {
-        const parsed = JSON.parse(sec) as Section[];
-        if (Array.isArray(parsed) && parsed.length) setSections(parsed);
-        else localStorage.setItem(LS_SECTIONS, JSON.stringify(SECTIONS_SEED));
-      }
-      else localStorage.setItem(LS_SECTIONS, JSON.stringify(SECTIONS_SEED));
-      if (c) setSectionColorsState({ ...SECTION_COLORS_DEFAULT, ...JSON.parse(c) });
-      else localStorage.setItem(LS_COLORS, JSON.stringify(SECTION_COLORS_DEFAULT));
-      if (sjc) {
-        try { setSubjectColorsState(JSON.parse(sjc)); } catch {}
-      }
-    } catch {}
+      const res = await fetch('/api/catalog', { cache: 'no-store' });
+      const j = await res.json();
+      if (res.ok && j?.catalog) apply(j.catalog);
+      else setState(EMPTY);
+    } catch {
+      setState(EMPTY);
+    }
   }, []);
 
-  const saveMaterials = (next: Material[]) => {
-    setMaterials(next);
-    localStorage.setItem(LS_MATERIALS, JSON.stringify(next));
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const addMaterial = (mat: Material) => {
-    saveMaterials([mat, ...materials]);
-  };
+  // Обнаруживаем данные, которые раньше жили только в localStorage
+  // (добавленные админом до переноса каталога на сервер).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sections = readLegacy<Section[]>('lecport_sections_v1');
+    const subjects = readLegacy<Subject[]>('lecport_subjects_v1');
+    const materials = readLegacy<Material[]>('lecport_materials_v1');
+    const hasLegacy =
+      (Array.isArray(sections) && sections.length > 0) ||
+      (Array.isArray(subjects) && subjects.length > 0) ||
+      (Array.isArray(materials) && materials.length > 0);
+    if (hasLegacy) setLegacy({ sections, subjects, materials });
+  }, []);
 
-  const updateMaterial = (id: string, patch: Partial<Material>) => {
-    saveMaterials(materials.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-  };
-
-  const deleteMaterial = (id: string) => {
-    saveMaterials(materials.filter((m) => m.id !== id));
-  };
-
-  const addSubject = (name: string) => {
-    const id = name.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-');
-    const next = [...subjects, { id: `${id}-${Date.now()}`, name }];
-    setSubjects(next);
-    localStorage.setItem(LS_SUBJECTS, JSON.stringify(next));
-  };
-
-  const renameSubject = (id: string, name: string) => {
-    const next = subjects.map((s) => (s.id === id ? { ...s, name } : s));
-    setSubjects(next);
-    localStorage.setItem(LS_SUBJECTS, JSON.stringify(next));
-  };
-
-  /**
-   * Удаление предмета. Материалы либо удаляются вместе с ним,
-   * либо переносятся в другой предмет (moveToId).
-   */
-  const deleteSubject = (id: string, opts: { action: 'delete' } | { action: 'move'; moveToId: string }) => {
-    const affected = materials.filter((m) => m.subjectId === id).length;
-    if (opts.action === 'delete') {
-      saveMaterials(materials.filter((m) => m.subjectId !== id));
-    } else {
-      saveMaterials(materials.map((m) => (m.subjectId === id ? { ...m, subjectId: opts.moveToId } : m)));
+  const mutate = useCallback(async (action: string, payload: Record<string, unknown> = {}): Promise<CatalogSnapshot | null> => {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const j = await res.json();
+      if (res.ok && j?.catalog) {
+        apply(j.catalog);
+        return j.catalog;
+      }
+      console.error('[catalog]', j?.error ?? 'Операция не выполнена');
+      return null;
+    } catch (e) {
+      console.error('[catalog]', e);
+      return null;
+    } finally {
+      setBusy(false);
     }
-    const nextSubjects = subjects.filter((s) => s.id !== id);
-    setSubjects(nextSubjects);
-    localStorage.setItem(LS_SUBJECTS, JSON.stringify(nextSubjects));
-    const nextColors = { ...subjectColors };
-    delete nextColors[id];
-    setSubjectColorsState(nextColors);
-    localStorage.setItem(LS_SUBJ_COLORS, JSON.stringify(nextColors));
-    return affected;
-  };
+  }, []);
 
-  const setSubjectColor = (id: string, color: string) => {
-    const next = { ...subjectColors, [id]: color };
-    setSubjectColorsState(next);
-    localStorage.setItem(LS_SUBJ_COLORS, JSON.stringify(next));
-  };
+  const sections = state?.sections ?? [];
+  const subjects = state?.subjects ?? [];
+  const materials = state?.materials ?? [];
+  const sectionColors = state?.sectionColors ?? ({} as SectionColors);
+  const subjectColors = state?.subjectColors ?? {};
 
-  const clearSubjectColor = (id: string) => {
-    const next = { ...subjectColors };
-    delete next[id];
-    setSubjectColorsState(next);
-    localStorage.setItem(LS_SUBJ_COLORS, JSON.stringify(next));
-  };
-
-  const resetSubjectColors = () => {
-    setSubjectColorsState({});
-    localStorage.setItem(LS_SUBJ_COLORS, JSON.stringify({}));
-  };
-
-  const setSectionColor = (type: LessonType, color: string) => {
-    const next = { ...sectionColors, [type]: color };
-    setSectionColorsState(next);
-    localStorage.setItem(LS_COLORS, JSON.stringify(next));
-  };
-
-  const resetSectionColors = () => {
-    setSectionColorsState(SECTION_COLORS_DEFAULT);
-    localStorage.setItem(LS_COLORS, JSON.stringify(SECTION_COLORS_DEFAULT));
-  };
-
-  const renameSection = (id: string, name: string) => {
-    const next = sections.map((s) => (s.id === id ? { ...s, name } : s));
-    setSections(next);
-    localStorage.setItem(LS_SECTIONS, JSON.stringify(next));
-  };
-
-  /**
-   * Удаление раздела. Материалы либо удаляются вместе с ним,
-   * либо переносятся в другой раздел (moveToId).
-   * Возвращает количество затронутых материалов.
-   */
-  const deleteSection = (id: string, opts: { action: 'delete' } | { action: 'move'; moveToId: string }) => {
+  const addSection = async (name: string) => { await mutate('addSection', { name }); };
+  const renameSection = async (id: string, name: string) => { await mutate('renameSection', { id, name }); };
+  const deleteSection = async (id: string, opts: { action: 'delete' } | { action: 'move'; moveToId: string }) => {
     const affected = materials.filter((m) => m.lessonType === id).length;
-    if (opts.action === 'delete') {
-      saveMaterials(materials.filter((m) => m.lessonType !== id));
-    } else {
-      saveMaterials(materials.map((m) => (m.lessonType === id ? { ...m, lessonType: opts.moveToId } : m)));
-    }
-    const nextSections = sections.filter((s) => s.id !== id);
-    setSections(nextSections);
-    localStorage.setItem(LS_SECTIONS, JSON.stringify(nextSections));
-    const nextColors = { ...sectionColors };
-    delete nextColors[id];
-    setSectionColorsState(nextColors);
-    localStorage.setItem(LS_COLORS, JSON.stringify(nextColors));
+    await mutate('deleteSection', { id, moveAction: opts.action, moveToId: opts.action === 'move' ? opts.moveToId : undefined });
     return affected;
+  };
+
+  const addSubject = async (name: string) => { await mutate('addSubject', { name }); };
+  const renameSubject = async (id: string, name: string) => { await mutate('renameSubject', { id, name }); };
+  const deleteSubject = async (id: string, opts: { action: 'delete' } | { action: 'move'; moveToId: string }) => {
+    const affected = materials.filter((m) => m.subjectId === id).length;
+    await mutate('deleteSubject', { id, moveAction: opts.action, moveToId: opts.action === 'move' ? opts.moveToId : undefined });
+    return affected;
+  };
+
+  const setSectionColor = async (id: string, color: string) => { await mutate('setSectionColor', { id, color }); };
+  const resetSectionColors = async () => { await mutate('resetSectionColors'); };
+  const setSubjectColor = async (id: string, color: string) => { await mutate('setSubjectColor', { id, color }); };
+  const clearSubjectColor = async (id: string) => { await mutate('clearSubjectColor', { id }); };
+  const resetSubjectColors = async () => { await mutate('resetSubjectColors'); };
+
+  const addMaterial = async (mat: Material) => { await mutate('addMaterial', { material: mat }); };
+  const updateMaterial = async (id: string, patch: Partial<Material>) => { await mutate('updateMaterial', { id, patch }); };
+  const deleteMaterial = async (id: string) => { await mutate('deleteMaterial', { id }); };
+
+  const importLegacy = async () => {
+    if (!state) return;
+    const snapshot: CatalogSnapshot = {
+      sections: readLegacy<Section[]>('lecport_sections_v1') ?? state.sections,
+      subjects: readLegacy<Subject[]>('lecport_subjects_v1') ?? state.subjects,
+      materials: readLegacy<Material[]>('lecport_materials_v1') ?? state.materials,
+      sectionColors: { ...readLegacy<Record<string, string>>('lecport_section_colors_v1'), ...state.sectionColors },
+      subjectColors: { ...readLegacy<Record<string, string>>('lecport_subject_colors_v1'), ...state.subjectColors },
+    };
+    const snap = await mutate('replaceAll', { catalog: snapshot });
+    try { LS_LEGACY.forEach((k) => localStorage.removeItem(k)); } catch {}
+    setLegacy(null);
+    if (snap) apply(snap);
+  };
+
+  const discardLegacy = () => {
+    try { LS_LEGACY.forEach((k) => localStorage.removeItem(k)); } catch {}
+    setLegacy(null);
   };
 
   return {
-    materials, subjects, sections, sectionColors, subjectColors,
-    addMaterial, updateMaterial, deleteMaterial,
-    addSubject, renameSubject, deleteSubject,
-    setSubjectColor, clearSubjectColor, resetSubjectColors,
-    setSectionColor, resetSectionColors,
-    renameSection, deleteSection,
+    sections,
+    subjects,
+    materials,
+    sectionColors,
+    subjectColors,
+    loading: !state,
+    busy,
+    refresh: load,
+    legacy,
+    importLegacy,
+    discardLegacy,
+    addSection,
+    renameSection,
+    deleteSection,
+    addSubject,
+    renameSubject,
+    deleteSubject,
+    setSectionColor,
+    resetSectionColors,
+    setSubjectColor,
+    clearSubjectColor,
+    resetSubjectColors,
+    addMaterial,
+    updateMaterial,
+    deleteMaterial,
   };
-}
-
-export function getMaterialById(id: string): Material | undefined {
-  if (typeof window === 'undefined') return MATERIALS_SEED.find((m) => m.id === id);
-  try {
-    const raw = localStorage.getItem(LS_MATERIALS);
-    const arr: Material[] = raw ? JSON.parse(raw) : MATERIALS_SEED;
-    return arr.find((m) => m.id === id);
-  } catch {
-    return MATERIALS_SEED.find((m) => m.id === id);
-  }
 }
 
 const favKey = (uid: string) => `lecport_fav_${uid}`;
 const notesKey = (uid: string) => `lecport_notes_${uid}`;
 
-/** Избранное и заметки. Ключ — id пользователя (у гостей — общий «guest»). */
+/** Избранное и заметки. Ключ — id пользователя (у гостей — общий «guest»).
+ *  Остаются личными для каждого пользователя (localStorage). */
 export function useFavorites() {
   const { user, loading } = useAuth();
   const uid = user?.id ?? 'guest';
@@ -230,4 +231,14 @@ export function useFavorites() {
   }, [favorites, uid]);
 
   return { favorites, notes, toggleFavorite, isFavorite, setNote, removeFavorite, ready };
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }

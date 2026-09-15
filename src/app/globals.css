@@ -136,3 +136,12 @@ body {
     box-shadow: none;
   }
 }
+
+/* Скрывает скроллбар, сохраняя прокрутку (для горизонтальных навигаций на мобильных) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

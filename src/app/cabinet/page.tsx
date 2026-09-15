@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 export default function CabinetPage() {
   const { user, role, hasSubscription, loading } = useAuth();
-  const { materials, subjects, sections } = useCatalog();
+  const { materials, subjects, sections, loading: catalogLoading } = useCatalog();
   const fullAccess = canAccessFull(role, hasSubscription);
   const subjName = (id: string) => subjects.find((s) => s.id === id)?.name ?? id;
   const typeName = (id: string) => sections.find((t) => t.id === id)?.name ?? id;
@@ -20,6 +20,16 @@ export default function CabinetPage() {
       <Card>
         <CardContent className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
           <Loader2 className="animate-spin size-4" />Загрузка профиля...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (catalogLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
+          <Loader2 className="animate-spin size-4" />Загрузка каталога...
         </CardContent>
       </Card>
     );

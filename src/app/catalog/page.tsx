@@ -31,7 +31,7 @@ const iconFor = (id: string) => TYPE_ICON[id] ?? BookOpen;
 const descFor = (id: string) => TYPE_DESC[id] ?? "Учебные материалы раздела";
 
 function CatalogInner() {
-  const { materials, subjects, sections, sectionColors, subjectColors } = useCatalog();
+  const { materials, subjects, sections, sectionColors, subjectColors, loading } = useCatalog();
   const router = useRouter();
   const params = useSearchParams();
   const type = params.get("type") as LessonType | null;
@@ -40,16 +40,6 @@ function CatalogInner() {
 
   const validType = type && sections.some((s) => s.id === type) ? (type as LessonType) : null;
   const validSubject = subjectId && subjects.some((s) => s.id === subjectId) ? subjectId : null;
-
-  const setParam = (patch: Record<string, string | null>) => {
-    const sp = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === null || v === "") sp.delete(k);
-      else sp.set(k, v);
-    }
-    const qs = sp.toString();
-    router.replace(qs ? `/catalog?${qs}` : "/catalog", { scroll: false });
-  };
 
   const countByType = useMemo(() => {
     const m: Record<string, number> = {};
@@ -76,6 +66,22 @@ function CatalogInner() {
       return true;
     });
   }, [materials, validType, validSubject, q]);
+
+  if (loading) {
+    return (
+      <Card><CardContent className="flex items-center gap-2 py-10 text-sm text-muted-foreground"><Search className="size-4 animate-pulse" />Загрузка каталога...</CardContent></Card>
+    );
+  }
+
+  const setParam = (patch: Record<string, string | null>) => {
+    const sp = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null || v === "") sp.delete(k);
+      else sp.set(k, v);
+    }
+    const qs = sp.toString();
+    router.replace(qs ? `/catalog?${qs}` : "/catalog", { scroll: false });
+  };
 
   const subjName = (id: string) => subjects.find((s) => s.id === id)?.name ?? id;
   const typeName = (id: string) => sections.find((t) => t.id === id)?.name ?? id;
@@ -179,7 +185,7 @@ function CatalogInner() {
       {/* ШАГ 2: выбор предмета внутри раздела */}
       {validType && !validSubject && (
         <section className="space-y-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" className="action-btn" onClick={() => setParam({ type: null, subject: null })}>
               <ArrowLeft />Все разделы
             </Button>

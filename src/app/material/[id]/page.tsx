@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Lock, Download, ExternalLink, Eye, CheckCircle2, FileText } from "lucide-react";
-import type { Material } from "@/lib/types";
-import { getMaterialById, useCatalog } from "@/lib/store";
+import { ArrowLeft, Lock, Download, ExternalLink, Eye, CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { useCatalog } from "@/lib/store";
 import { useAuth, canAccessFull } from "@/lib/auth";
 import { logClient } from "@/lib/audit-client";
 import { sectionSoftStyle } from "@/lib/sections";
@@ -15,23 +14,25 @@ import { Button } from "@/components/ui/button";
 
 export default function MaterialPage() {
   const params = useParams<{ id: string }>();
-  const [mat, setMat] = useState<Material | undefined>(undefined);
-  const { subjects, sections, sectionColors } = useCatalog();
+  const { materials, subjects, sections, sectionColors, loading } = useCatalog();
   const { role, hasSubscription } = useAuth();
   const full = canAccessFull(role, hasSubscription);
 
-  useEffect(() => {
-    if (params?.id) {
-      setMat(getMaterialById(params.id));
-      logClient("material_view", `Открытие материала: ${params.id}`);
-    }
-  }, [params?.id]);
+  const mat = materials.find((m) => m.id === params?.id);
 
-  if (!mat) {
+  useEffect(() => {
+    if (mat) logClient("material_view", `Открытие материала: ${mat.id}`);
+  }, [mat?.id]);
+
+  if (loading || !mat) {
     return (
       <Card>
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Материал не найден. <Link href="/catalog" className="underline">Вернуться в каталог</Link>
+          {loading ? (
+            <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Загрузка...</span>
+          ) : (
+            <>Материал не найден. <Link href="/catalog" className="underline">Вернуться в каталог</Link></>
+          )}
         </CardContent>
       </Card>
     );

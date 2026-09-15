@@ -49,10 +49,10 @@ function NoteEditor({ materialId, initial }: { materialId: string; initial: stri
 }
 
 export default function FavoritesPage() {
-  const { materials, subjects, sections, sectionColors } = useCatalog();
+  const { materials, subjects, sections, sectionColors, loading } = useCatalog();
   const { favorites, notes, removeFavorite, ready } = useFavorites();
 
-  if (!ready) {
+  if (!ready || loading) {
     return (
       <Card><CardContent className="flex items-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Загрузка избранного...</CardContent></Card>
     );

@@ -65,6 +65,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 export default function AdminPage() {
   const { user, role, loading } = useAuth();
+  const catalogLoading = useCatalog().loading;
   const canEdit = role ? canEditMaterials(role) : false;
   const canManage = role ? canManageUsers(role) : false;
   const [tab, setTab] = useState<Tab>("materials");
@@ -120,10 +121,48 @@ export default function AdminPage() {
         )}
       </div>
 
-      {tab === "materials" && <MaterialsTab />}
-      {tab === "users" && canManage && <UsersTab />}
-      {tab === "audit" && canManage && <AuditTab />}
+      {catalogLoading ? (
+        <Card>
+          <CardContent className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />Загрузка каталога...
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          <LegacyImportCard />
+          {tab === "materials" && <MaterialsTab />}
+          {tab === "users" && canManage && <UsersTab />}
+          {tab === "audit" && canManage && <AuditTab />}
+        </div>
+      )}
     </div>
+  );
+}
+
+function LegacyImportCard() {
+  const { legacy, importLegacy, discardLegacy, busy } = useCatalog();
+  if (!legacy) return null;
+  const sectionsCount = legacy.sections?.length ?? 0;
+  const subjectsCount = legacy.subjects?.length ?? 0;
+  const materialsCount = legacy.materials?.length ?? 0;
+  return (
+    <Card className="border-amber-500/30 bg-amber-500/5">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-300">
+          <Upload className="size-4" />Данные в этом браузере
+        </CardTitle>
+        <CardDescription>
+          Найдены данные, добавленные раньше (только в этом браузере): {sectionsCount} разделов, {subjectsCount} предметов,
+          {materialsCount} материалов. Перенесите их на сервер, чтобы они стали видны всем пользователям — дальше всё хранится в общем каталоге.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={importLegacy} disabled={busy} className="action-btn">
+          {busy && <Loader2 className="size-4 animate-spin" />}Перенести на сервер
+        </Button>
+        <Button size="sm" variant="ghost" onClick={discardLegacy} className="action-btn">Удалить из браузера</Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -361,10 +400,11 @@ function MaterialsTab() {
 function SectionsCard() {
   const {
     sections, materials, sectionColors,
-    renameSection, deleteSection, setSectionColor, resetSectionColors,
+    addSection, renameSection, deleteSection, setSectionColor, resetSectionColors,
   } = useCatalog();
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState("");
+  const [newSection, setNewSection] = useState("");
   const [colorFor, setColorFor] = useState<Section | null>(null);
   const [deleteFor, setDeleteFor] = useState<Section | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -387,13 +427,17 @@ function SectionsCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><LayoutGrid className="size-4" />Разделы</CardTitle>
-        <CardDescription>Переименование, удаление и цвета. При удалении можно перенести материалы в другой раздел.</CardDescription>
+        <CardDescription>Создание, переименование, удаление и цвета. При удалении можно перенести материалы в другой раздел.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <Input value={newSection} onChange={(e) => setNewSection(e.target.value)} placeholder="Новый раздел" onKeyDown={(e) => { if (e.key === "Enter") { if (newSection.trim()) { addSection(newSection.trim()); setNewSection(""); setMsg(null); } } }} />
+          <Button variant="outline" className="action-btn" onClick={() => { if (newSection.trim()) { addSection(newSection.trim()); setNewSection(""); setMsg(null); } }}>Добавить</Button>
+        </div>
         {sections.map((sec) => {
           const color = sectionColors[sec.id] ?? "#64748b";
           return (
-            <div key={sec.id} className="rounded-lg border px-3 py-2.5">
+            <div key={sec.id} className="overflow-hidden rounded-lg border px-3 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
                 {editingNameId === sec.id ? (
@@ -405,7 +449,7 @@ function SectionsCard() {
                       if (e.key === "Enter") saveName(sec);
                       if (e.key === "Escape") setEditingNameId(null);
                     }}
-                    className="h-8"
+                    className="h-8 min-w-0"
                   />
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{sec.name}</span>
@@ -516,7 +560,7 @@ function StructureCard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Разделы · {sections.length}</div>
-            <div className="truncate text-xs text-muted-foreground">{sections.map((s) => s.name).join(", ")}</div>
+            <div className="line-clamp-2 break-words text-xs text-muted-foreground">{sections.map((s) => s.name).join(", ")}</div>
           </div>
           <Button size="sm" variant="outline" className="action-btn shrink-0" onClick={() => setSectionsOpen(true)}>
             Настроить
@@ -540,7 +584,7 @@ function StructureCard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Предметы · {subjects.length}</div>
-            <div className="truncate text-xs text-muted-foreground">{subjects.map((s) => s.name).join(", ")}</div>
+            <div className="line-clamp-3 break-words text-xs text-muted-foreground">{subjects.map((s) => s.name).join(", ")}</div>
           </div>
           <Button size="sm" variant="outline" className="action-btn shrink-0" onClick={() => setSubjectsOpen(true)}>
             Настроить
@@ -765,7 +809,7 @@ function SubjectsCard() {
         {subjects.map((subj) => {
           const color = resolveSubjectColor(subjectColors, subj.id);
           return (
-            <div key={subj.id} className="rounded-lg border px-3 py-2.5">
+            <div key={subj.id} className="overflow-hidden rounded-lg border px-3 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
                 {editingNameId === subj.id ? (
@@ -777,7 +821,7 @@ function SubjectsCard() {
                       if (e.key === "Enter") saveName(subj);
                       if (e.key === "Escape") setEditingNameId(null);
                     }}
-                    className="h-8"
+                    className="h-8 min-w-0"
                   />
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{subj.name}</span>
@@ -1086,13 +1130,13 @@ function UsersTab() {
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">{u.email} · рег. {new Date(u.createdAt).toLocaleDateString("ru-RU")}</div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <UserCog className="size-4 text-muted-foreground" />
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+                  <UserCog className="size-4 shrink-0 text-muted-foreground" />
                   <select
                     value={u.role}
                     disabled={busyId === u.id}
                     onChange={(e) => changeRole(u.id, e.target.value)}
-                    className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                    className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm sm:flex-none"
                     title="Назначить роль"
                   >
                     <option value="buyer">Покупатель</option>

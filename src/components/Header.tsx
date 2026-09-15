@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenCheck, LayoutGrid, CreditCard, UserRound, ShieldCheck, LogOut, PenSquare, Heart } from "lucide-react";
+import { BookOpenCheck, LayoutGrid, CreditCard, UserRound, ShieldCheck, LogOut, PenSquare, Heart, LogIn, UserPlus } from "lucide-react";
 import { useAuth, ROLE_LABELS, canEditMaterials } from "@/lib/auth";
 import { planName } from "@/lib/plans";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -91,10 +91,16 @@ export default function Header() {
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Войти</Link>
+                <Link href="/login" aria-label="Войти">
+                  <LogIn className="sm:hidden" />
+                  <span className="hidden sm:inline">Войти</span>
+                </Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/register">Регистрация</Link>
+                <Link href="/register" aria-label="Регистрация">
+                  <UserPlus className="sm:hidden" />
+                  <span className="hidden sm:inline">Регистрация</span>
+                </Link>
               </Button>
             </div>
           )}
@@ -102,13 +108,13 @@ export default function Header() {
       </div>
 
       <div className="border-t md:hidden">
-        <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-2">
+        <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-2">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground",
+                "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm text-muted-foreground",
                 pathname.startsWith(item.href) && "bg-accent text-accent-foreground"
               )}
             >
@@ -117,7 +123,7 @@ export default function Header() {
             </Link>
           ))}
           {showPanel && (
-            <Link href="/admin" className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground">
+            <Link href="/admin" className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm text-muted-foreground">
               {isAdmin ? <ShieldCheck className="size-4" /> : <PenSquare className="size-4" />}
               {panelLabel}
             </Link>
