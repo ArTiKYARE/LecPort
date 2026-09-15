@@ -1,0 +1,16 @@
+services:
+  lecport:
+    image: lecport:latest
+    container_name: lecport
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - safescan_safescan_net
+    volumes:
+      - ./data:/app/data
+      - ./public/uploads:/app/public/uploads
+
+networks:
+  safescan_safescan_net:
+    external: true
