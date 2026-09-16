@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   await logAudit({
     userId: updated.id,
     email: updated.email,
-    userName: updated.name,
+    userName: updated.name ?? null,
     role: updated.role,
     action: "subscription_buy",
     details: `Подписка: ${plan}`,
@@ -40,7 +40,7 @@ export async function DELETE(req: NextRequest) {
   await logAudit({
     userId: updated.id,
     email: updated.email,
-    userName: updated.name,
+    userName: updated.name ?? null,
     role: updated.role,
     action: "subscription_cancel",
     details: "Автопродление отключено (доступ сохранён до конца оплаченного периода)",

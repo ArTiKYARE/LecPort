@@ -80,8 +80,11 @@ export default function FavoritesPage() {
         <Card>
           <CardContent className="space-y-3 py-10 text-center">
             <Heart className="mx-auto size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Пока пусто. Отмечайте материалы сердечком в каталоге.</p>
-            <Button variant="outline" asChild><Link href="/catalog">Перейти в каталог</Link></Button>
+            <p className="text-sm text-muted-foreground">Пока пусто. Отмечайте материалы сердечком в каталоге сообщества.</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" asChild><Link href="/organizations">К сообществам</Link></Button>
+              <Button variant="outline" asChild><Link href="/courses">К курсам</Link></Button>
+            </div>
           </CardContent>
         </Card>
       ) : (

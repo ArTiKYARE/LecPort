@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenCheck, LayoutGrid, CreditCard, UserRound, ShieldCheck, LogOut, PenSquare, Heart, LogIn, UserPlus, Building2 } from "lucide-react";
-import { useAuth, ROLE_LABELS, canEditMaterials } from "@/lib/auth";
+import { BookOpenCheck, CreditCard, UserRound, ShieldCheck, LogOut, PenSquare, Heart, LogIn, UserPlus, Building2, Handshake, Crown } from "lucide-react";
+import { useAuth, canEditMaterials } from "@/lib/auth";
 import { planName } from "@/lib/plans";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/catalog", label: "Каталог", icon: LayoutGrid },
-  { href: "/organizations", label: "Продавцы", icon: Building2 },
+  { href: "/courses", label: "Курсы", icon: BookOpenCheck },
+  { href: "/services", label: "Помощь", icon: Handshake },
+  { href: "/organizations", label: "Сообщества", icon: Building2 },
   { href: "/favorites", label: "Избранное", icon: Heart },
   { href: "/subscription", label: "Подписка", icon: CreditCard },
   { href: "/cabinet", label: "Кабинет", icon: UserRound },
@@ -20,7 +21,7 @@ const NAV = [
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, role, hasSubscription, logout } = useAuth();
+  const { user, role, hasSubscription, isPremium, logout } = useAuth();
   const showPanel = user && canEditMaterials(role);
   const isAdmin = role === "admin";
 
@@ -46,12 +47,15 @@ export default function Header() {
           {hasSubscription && (
             <Badge variant="success" className="hidden sm:inline-flex">Тариф «{planName(user?.subscriptionPlan)}»</Badge>
           )}
+          {isPremium && (
+            <Badge variant="price" className="gap-1"><Crown className="size-3" />Премиум</Badge>
+          )}
           <ThemeToggle />
           {user ? (
             <div className="flex items-center gap-2">
               <div className="hidden text-right leading-tight sm:block">
                 <div className="text-sm font-medium">{user.name}</div>
-                <div className="text-xs text-muted-foreground">{ROLE_LABELS[role]}</div>
+                {user.username && <div className="text-xs text-muted-foreground">@{user.username}</div>}
               </div>
               <Button variant="outline" size="sm" onClick={handleLogout} className="action-btn">
                 <LogOut />

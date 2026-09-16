@@ -1,17 +1,67 @@
 export type LessonType = string;
 
-/** Продавец на площадке: любой пользователь может создать организацию и вести от её имени продажи. */
+/** Роль участника сообщества (кроме владельца — она подразумевается). */
+export type OrgMemberRole = "member" | "author" | "moderator";
+
+/** Участник сообщества с ролью. Владелец хранится отдельно в ownerId. */
+export type OrgMember = {
+  userId: string;
+  role: OrgMemberRole;
+  joinedAt: string;
+};
+
+/** Платная или бесплатная секция каталога сообщества. */
+export type OrgSection = {
+  id: string;
+  name: string;
+  description?: string;
+  /** Цена доступа к секции. Если нет/0 — бесплатная. */
+  price?: number;
+  color?: string;
+  createdAt: string;
+};
+
+/** Событие новостной ленты сообщества. */
+export type OrgNewsEntry = {
+  id: string;
+  /** Тип события: объявление владельца или опубликованный контент. */
+  kind: "announcement" | "material" | "course" | "service";
+  title: string;
+  text?: string;
+  targetId?: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+};
+
+/** Как пользователи попадают в сообщество. */
+export type OrgMembership = "open" | "request";
+
+/** Сообщество (организация): каталог материалов, курсы, услуги и лента новостей.
+ *  Создать его может пользователь с премиум-подпиской; управляет создатель. */
 export type Organization = {
   id: string;
   name: string;
   description?: string;
   /** URL аватара организации (обычный файл из /card-image/... или внешняя ссылка). */
   avatar?: string;
-  /** id владельца (UserRecord.id). */
+  /** id создателя (UserRecord.id). Если не задан — платформенное сообщество (админ). */
   ownerId?: string;
   /** Отметка «проверено площадкой». */
   verified?: boolean;
+  /** Как вступают: сразу («open») или по заявке («request»). */
+  membership: OrgMembership;
+  /** Участники с ролями (кроме владельца). */
+  members: OrgMember[];
+  /** userId, ожидающие одобрения заявки (при membership = "request"). */
+  joinRequests: string[];
+  /** Платные/бесплатные секции каталога сообщества. */
+  sections: OrgSection[];
+  /** Лента событий сообщества. */
+  news: OrgNewsEntry[];
   createdAt: string;
+  /** (вычисляемое) Активна ли Премиум-подписка владельца. false = сообщество заморожено (только редактирование). */
+  ownerPremiumActive?: boolean;
 };
 
 /** Оформление цветной карточки каталога (раздел/предмет). */
@@ -48,6 +98,8 @@ export type Material = {
   lessonType: LessonType;
   /** Организация-продавец. Если нет — материал считается базовым (каталог платформы). */
   organizationId?: string;
+  /** Секция каталога сообщества, к которой относится материал. */
+  orgSectionId?: string;
   fileUrl?: string; // /uploads/... или внешняя ссылка
   driveUrl?: string; // ссылка на Google Диск
   hasFile?: boolean;
@@ -55,6 +107,80 @@ export type Material = {
   fileName?: string;
   previewText?: string;
   price?: number; // если 0/undefined — входит в подписку или бесплатный
+  /** Продвижение: до какой даты карточка находится «в топе». ISO-строка. */
+  promotedUntil?: string;
+  /** Приоритет в сортировке: чем больше, тем выше в списке. */
+  priority?: number;
+  createdAt: string;
+};
+
+/** Модуль/глава курса — упорядоченный список материалов. */
+export type CourseModule = {
+  id: string;
+  title: string;
+  materialIds: string[];
+};
+
+/** Курс — структурированный продукт из материалов. Создаётся отдельным лицом или от имени организации. */
+export type Course = {
+  id: string;
+  title: string;
+  description?: string;
+  organizationId?: string;
+  /** Создатель курса (если он не от имени организации). Для автономных курсов. */
+  authorId?: string;
+  price?: number;
+  modules: CourseModule[];
+  /** Продвижение: до какой даты курс находится «в топе». ISO-строка. */
+  promotedUntil?: string;
+  /** Приоритет в сортировке: чем больше, тем выше в списке. */
+  priority?: number;
+  createdAt: string;
+};
+
+/** Категории услуг «Помощи» (репетиторство, работы на заказ и т.п.). */
+export const SERVICE_CATEGORIES = [
+  { id: "tutoring", name: "Репетиторство" },
+  { id: "homework", name: "Работы на заказ" },
+  { id: "coding", name: "Код и IT" },
+  { id: "consult", name: "Консультации" },
+  { id: "writing", name: "Тексты и оформление" },
+] as const;
+
+export type ServicePriceType = "fixed" | "hourly";
+
+/** Объявление об услуге: «я всегда этим занимаюсь — наймите меня». Создаётся отдельным лицом или от имени организации. */
+export type Service = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  /** fixed — фикс. цена за работу, hourly — цена за час. */
+  priceType: ServicePriceType;
+  price?: number;
+  organizationId?: string;
+  /** Создатель объявления. */
+  authorId?: string;
+  /** Средняя оценка 1–5 (вычисляется из отзывов). */
+  rating: number;
+  reviewCount: number;
+  /** Продвижение: до какой даты объявление «в топе». ISO-строка. */
+  promotedUntil?: string;
+  /** Приоритет в сортировке: чем больше, тем выше в списке. */
+  priority?: number;
+  createdAt: string;
+};
+
+/** Отзыв на услугу/курс/материал. По плану — только к подтверждённым сделкам. */
+export type Review = {
+  id: string;
+  /** К чему привязан отзыв: к услуге, курсу или материалу. */
+  targetType: "service" | "course" | "material";
+  targetId: string;
+  authorId: string;
+  authorName: string;
+  rating: number; // 1–5
+  text?: string;
   createdAt: string;
 };
 
@@ -71,6 +197,11 @@ export const ORGANIZATION_SEED: Organization[] = [
     name: 'LecPort',
     description: 'Базовая организация платформы. Материалы публикуются от её имени, пока вы не создали свою.',
     verified: true,
+    membership: 'open',
+    members: [],
+    joinRequests: [],
+    sections: [],
+    news: [],
     createdAt: new Date().toISOString(),
   },
 ];
@@ -145,3 +276,41 @@ export const MATERIALS_SEED: Material[] = [
     createdAt: new Date().toISOString(),
   },
 ];
+
+/* ================================================================
+   Хелперы для работы с ролями в сообществах (клиент + сервер).
+   Не зависят от серверного кода и безопасны для встраивания в UI.
+   ================================================================ */
+
+/** Конкретная роль внутри сообщества (с учётом владельца). */
+export type OrgRole = "owner" | "moderator" | "author" | "member";
+
+/** Получить роль пользователя в сообществе (null — не участник). */
+export function getOrgRole(org: Organization | undefined, userId: string | undefined): OrgRole | null {
+  if (!org || !userId) return null;
+  if (org.ownerId === userId) return "owner";
+  const m = org.members?.find((x) => x.userId === userId);
+  return m?.role ?? null;
+}
+
+/** Может ли пользователь управлять контентом сообщества (автор + модератор + владелец). */
+export function canPublishContent(role: OrgRole | null): boolean {
+  return role === "owner" || role === "moderator" || role === "author";
+}
+
+/** Может ли пользователь управлять настройками сообщества и его участниками (модератор + владелец). */
+export function canManageOrg(role: OrgRole | null): boolean {
+  return role === "owner" || role === "moderator";
+}
+
+/** Является ли пользователь участником сообщества (любыая роль). */
+export function isOrgMember(role: OrgRole | null): boolean {
+  return role !== null;
+}
+
+/** Стоимость секции: 0 / undefined = бесплатная. */
+export function sectionPriceLabel(section: OrgSection): string | null {
+  const price = section.price ?? 0;
+  if (price <= 0) return null;
+  return `${price} ₽`;
+}

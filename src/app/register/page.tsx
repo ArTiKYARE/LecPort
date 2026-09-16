@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserPlus, Loader2 } from "lucide-react";
+import { UserPlus, Loader2, AtSign } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +23,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const err = await register(name.trim(), email.trim(), password);
+    const err = await register(username.trim(), name.trim(), email.trim(), password);
     setBusy(false);
     if (err) {
       setError(err);
@@ -37,13 +38,22 @@ export default function RegisterPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><UserPlus className="size-5" />Регистрация</CardTitle>
-          <CardDescription>Создайте аккаунт покупателя. Роль администратора назначается вручную.</CardDescription>
+          <CardDescription>Юзернейм — ваш ник на площадке. Имя указывать необязательно.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Имя</Label>
-              <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Иван" />
+              <Label htmlFor="username">Юзернейм</Label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input id="username" required className="pl-9" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ivan_petrov" />
+              </div>
+              <p className="text-xs text-muted-foreground">Латиница, цифры, «_» и «-», 3–20 символов. Уникальный.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Имя (необязательно)</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Иван" />
+              <p className="text-xs text-muted-foreground">Будет показано в кабинете и профилях. Если пусто — покажем юзернейм.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

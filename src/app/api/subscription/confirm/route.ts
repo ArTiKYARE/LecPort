@@ -24,7 +24,7 @@ export async function POST() {
         const updated = await activateSubscription(user.id, rec.plan);
         await removePending(paymentId);
         await logAudit({
-          userId: user.id, email: user.email, userName: user.name, role: user.role,
+          userId: user.id, email: user.email, userName: user.name ?? null, role: user.role,
           action: "subscription_buy", details: `Оплата подтверждена: ${paymentId}, тариф ${rec.plan}`, ip: null,
         });
         return NextResponse.json({ activated: true, user: updated });

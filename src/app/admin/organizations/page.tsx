@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Building2, Pencil, Check, X, Loader2, ShieldCheck, Trash2, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Building2, Pencil, Check, X, Loader2, ShieldCheck, Trash2, BadgeCheck, Users, Newspaper, Lock, Unlock } from "lucide-react";
 import { type Organization } from "@/lib/types";
 import { useCatalog } from "@/lib/store";
 import { useAuth, canEditMaterials, ROLE_LABELS } from "@/lib/auth";
@@ -44,8 +44,8 @@ export default function AdminOrganizationsPage() {
           <Link href="/admin"><ArrowLeft className="size-4" />К панели модерации</Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Организации</h1>
-          <p className="text-sm text-muted-foreground">Продавцы платформы. Материалы можно привязывать к организации — она отображается в каталоге и на карточках.</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Сообщества</h1>
+          <p className="text-sm text-muted-foreground">Комьюнити пользователей. Создатели (Премиум) управляют ролями, секциями и ценами.</p>
         </div>
         <Badge variant="secondary" className="ml-auto">{ROLE_LABELS[role]}: {user.name}</Badge>
       </div>
@@ -134,6 +134,12 @@ function OrganizationsManager() {
                   <div className="flex items-center gap-2">
                     {org.verified ? <BadgeCheck className="size-4 shrink-0 text-sky-500" /> : <Building2 className="size-4 shrink-0 text-muted-foreground" />}
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{org.name}</span>
+                    <Badge variant="secondary" className="shrink-0 gap-1">
+                      {org.membership === "request" ? <Lock className="size-3" /> : <Unlock className="size-3" />}
+                      {(org.members?.length ?? 0) + 1} участн.
+                    </Badge>
+                    {(org.sections?.length ?? 0) > 0 && <Badge variant="outline" className="shrink-0">{org.sections!.length} секц.</Badge>}
+                    {(org.news?.length ?? 0) > 0 && <Badge variant="outline" className="shrink-0"><Newspaper className="size-3" /></Badge>}
                     <Badge variant="secondary" className="shrink-0">{countFor(org.id)} мат.</Badge>
                   </div>
                   {org.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{org.description}</p>}
@@ -158,8 +164,8 @@ function OrganizationsManager() {
         <div className="max-w-sm space-y-2 p-6 text-center">
           <Building2 className="mx-auto size-8 opacity-40" />
           <p>
-            Организация — продавец на площадке. Создайте организацию, затем в разделе «Материалы» привяжите к ней карточки
-            и укажите цену. Название организации и цена появятся в каталоге.
+            Сообщество — это комьюнити с новостной лентой, секциями каталога (платные и бесплатные) и участниками с ролями.
+            Создатель — Премиум-пользователь. Назначайте модераторов и авторов для управления контентом.
           </p>
         </div>
       </Card>

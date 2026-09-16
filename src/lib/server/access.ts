@@ -82,5 +82,5 @@ export function watermarkTxt(buf: Buffer, w: WatermarkUser): Buffer {
 
 /** Да/нет — нужно ли водяниками модифицировать файл для этого пользователя. */
 export function watermarkForUser(w: WatermarkUser): { name: string; email: string; id: string } {
-  return { name: w.name, email: w.email, id: w.id };
+  return { name: w.name ?? "", email: w.email, id: w.id };
 }

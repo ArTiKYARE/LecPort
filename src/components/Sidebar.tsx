@@ -1,13 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Heart, CreditCard, UserRound, ShieldCheck, PenSquare, Building2 } from "lucide-react";
+import { Heart, CreditCard, UserRound, ShieldCheck, PenSquare, Building2, BookOpenCheck, Handshake } from "lucide-react";
 import { useAuth, canEditMaterials } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/catalog", label: "Каталог", icon: LayoutGrid },
-  { href: "/organizations", label: "Продавцы", icon: Building2 },
+  { href: "/courses", label: "Курсы", icon: BookOpenCheck },
+  { href: "/services", label: "Помощь", icon: Handshake },
+  { href: "/organizations", label: "Сообщества", icon: Building2 },
   { href: "/favorites", label: "Избранное", icon: Heart },
   { href: "/subscription", label: "Подписка", icon: CreditCard },
   { href: "/cabinet", label: "Кабинет", icon: UserRound },
@@ -58,7 +59,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="mt-auto px-3 text-xs text-muted-foreground">
-        {showPanel && <p className="mb-1">{isAdmin ? "Админ" : "Модератор"}: {user.name}</p>}
+        {showPanel && <p className="mb-1">{isAdmin ? "Админ" : "Модератор"}: {user.name || user.username}</p>}
         <p>Лекции · Практики · Лабораторные</p>
       </div>
     </aside>

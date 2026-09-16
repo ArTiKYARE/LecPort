@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       await removePending(objectId);
       if (updated) {
         await logAudit({
-          userId: updated.id, email: updated.email, userName: updated.name, role: updated.role,
+          userId: updated.id, email: updated.email, userName: updated.name ?? null, role: updated.role,
           action: "subscription_buy", details: `Вебхук: оплата ${objectId}, тариф ${plan}`, ip: null,
         });
       }

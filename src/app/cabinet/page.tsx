@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 export default function CabinetPage() {
-  const { user, role, hasSubscription, loading, cancelSubscription } = useAuth();
+  const { user, role, hasSubscription, isPremium, loading, cancelSubscription } = useAuth();
   const { materials, subjects, sections, loading: catalogLoading } = useCatalog();
   const fullAccess = canAccessFull(role, hasSubscription, user?.subscriptionExpiresAt);
   const subjName = (id: string) => subjects.find((s) => s.id === id)?.name ?? id;
@@ -66,8 +66,17 @@ export default function CabinetPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="font-medium">{user.name}</div>
+            <div className="text-muted-foreground">@{user.username ?? user.name}</div>
             <div className="text-muted-foreground">{user.email}</div>
-            <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>
+              {isPremium && <Badge variant="price">Премиум</Badge>}
+            </div>
+            {user.premiumUntil && (
+              <p className="text-xs text-muted-foreground">
+                Премиум до <span className="font-medium text-foreground">{new Date(user.premiumUntil).toLocaleDateString("ru-RU")}</span>
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>

@@ -6,22 +6,25 @@ export type Role = "guest" | "buyer" | "moderator" | "admin";
 
 export type SessionUser = {
   id: string;
-  name: string;
+  username: string;
+  name?: string;
   email: string;
   role: Exclude<Role, "guest">;
   hasSubscription: boolean;
   subscriptionPlan?: string;
   subscriptionExpiresAt?: string;
   cancelAtPeriodEnd?: boolean;
+  premiumUntil?: string;
 };
 
 type AuthState = {
   user: SessionUser | null;
   role: Role;
   hasSubscription: boolean;
+  isPremium: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<string | null>;
-  register: (name: string, email: string, password: string) => Promise<string | null>;
+  register: (username: string, name: string, email: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   buySubscription: (plan?: string) => Promise<string | null>;
@@ -30,6 +33,11 @@ type AuthState = {
 };
 
 const AuthCtx = createContext<AuthState | null>(null);
+
+/** Нормализует профиль: имя всегда есть (фолбэк username → email). */
+function norm(u: SessionUser): SessionUser {
+  return { ...u, name: u.name || u.username || u.email.split("@")[0] };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -43,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const j = await res.json();
-      setUser(j.user);
+      setUser(j.user ? norm(j.user) : null);
     } catch {
       setUser(null);
     } finally {
@@ -63,19 +71,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) return (j.error as string) || "Ошибка входа";
-    setUser(j.user);
+    setUser(norm(j.user));
     return null;
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (username: string, name: string, email: string, password: string) => {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ username, name, email, password }),
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) return (j.error as string) || "Ошибка регистрации";
-    setUser(j.user);
+    setUser(norm(j.user));
     return null;
   };
 
@@ -93,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const j = await res.json().catch(() => ({}));
     if (!res.ok) return (j.error as string) || "Не удалось создать платёж";
     if (j.demo && j.user) {
-      setUser(j.user);
+      setUser(norm(j.user));
       return null;
     }
     if (j.confirmationUrl) {
@@ -106,22 +114,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const confirmPayment = async (): Promise<boolean> => {
     const res = await fetch("/api/subscription/confirm", { method: "POST" });
     const j = await res.json().catch(() => ({}));
-    if (res.ok && j.user) setUser(j.user);
+    if (res.ok && j.user) setUser(norm(j.user));
     return Boolean(j.activated);
   };
 
   const cancelSubscription = async () => {
     const res = await fetch("/api/subscription", { method: "DELETE" });
     const j = await res.json().catch(() => ({}));
-    if (res.ok) setUser(j.user);
+    if (res.ok) setUser(norm(j.user));
   };
 
   const role: Role = user ? user.role : "guest";
   const hasSubscription = user?.hasSubscription ?? false;
+  const isPremium = Boolean(user?.premiumUntil && new Date(user.premiumUntil).getTime() > Date.now());
 
   return (
     <AuthCtx.Provider
-      value={{ user, role, hasSubscription, loading, login, register, logout, refresh, buySubscription, confirmPayment, cancelSubscription }}
+      value={{ user, role, hasSubscription, isPremium, loading, login, register, logout, refresh, buySubscription, confirmPayment, cancelSubscription }}
     >
       {children}
     </AuthCtx.Provider>
@@ -157,3 +166,9 @@ export const ROLE_LABELS: Record<Role, string> = {
   moderator: "Модератор",
   admin: "Администратор",
 };
+
+/** Отображаемое имя пользователя: username → name → email. */
+export function displayName(u?: SessionUser | null): string {
+  if (!u) return "Аноним";
+  return u.username || u.name || u.email.split("@")[0];
+}

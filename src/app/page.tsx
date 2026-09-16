@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpenText, PenLine, FlaskConical, ArrowRight, ShieldCheck, Files, CreditCard } from "lucide-react";
+import { BookOpenText, PenLine, FlaskConical, ArrowRight, ShieldCheck, Files, CreditCard, Building2, Users, Crown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ const TRACKS = [
 ];
 
 const STEPS = [
-  { icon: Files, title: "1. Найдите материал", desc: "Фильтры по предмету и виду занятия: лекция, практика, лабораторная." },
+  { icon: Building2, title: "1. Найдите сообщество", desc: "Каталог живёт в организациях. Каждая — со своим набором материалов и новостями." },
   { icon: CreditCard, title: "2. Оформите подписку", desc: "Один тариф открывает все файлы и ссылки на Google Диск." },
   { icon: ShieldCheck, title: "3. Учитесь", desc: "Превью доступно гостям, полные файлы — в кабинете после оплаты." },
 ];
@@ -37,16 +37,15 @@ export default function Home() {
           <div className="space-y-5">
             <Badge variant="secondary">Учебная платформа</Badge>
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Лекции, практики и лабораторные в одном месте
+              Сообщества с материалами, курсами и услугами
             </h1>
             <p className="max-w-xl text-muted-foreground">
-              Материалы разложены по предметам и видам занятий. Файлы PDF, DOCX и PPTX,
-              ссылки на Google Диск. Гостевое превью — бесплатно, полный доступ — по подписке.
+              Материалы, курсы и объявления об услугах — всё живёт в сообществах. Присоединяйтесь, вступайте, создавайте свои.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <Link href="/catalog">
-                  Перейти в каталог
+                <Link href="/organizations">
+                  Смотреть сообщества
                   <ArrowRight />
                 </Link>
               </Button>
@@ -62,21 +61,21 @@ export default function Home() {
           </div>
           <Card className="self-center">
             <CardHeader>
-              <CardTitle>Как устроен доступ</CardTitle>
-              <CardDescription>Четыре роли и прозрачные правила</CardDescription>
+              <CardTitle>Как это устроено</CardTitle>
+              <CardDescription>Сообщества, роли и подписки</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div><span className="font-medium">Гость</span> — каталог и превью материалов без регистрации.</div>
+                <Building2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div><span className="font-medium">Сообщество</span> — создаётся пользователем с Премиумом. Своя лента, секции, цены.</div>
               </div>
               <div className="flex items-start gap-3">
-                <CreditCard className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div><span className="font-medium">Покупатель</span> — полный доступ ко всем файлам по подписке.</div>
+                <Users className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div><span className="font-medium">Участники</span> — владелец назначает роли: автор, модератор, участник.</div>
               </div>
               <div className="flex items-start gap-3">
-                <Files className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div><span className="font-medium">Модератор и администратор</span> — публикация материалов, предметы, ссылки на Диск. Админ дополнительно управляет ролями и видит аудит.</div>
+                <Crown className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div><span className="font-medium">Премиум</span> — даёт возможность создать своё сообщество с платными/бесплатными секциями.</div>
               </div>
             </CardContent>
           </Card>
@@ -85,8 +84,8 @@ export default function Home() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Разделы каталога</h2>
-          <p className="text-sm text-muted-foreground">Каждый материал привязан к предмету и виду занятия.</p>
+          <h2 className="text-xl font-semibold tracking-tight">Разделы контента</h2>
+          <p className="text-sm text-muted-foreground">Каждый материал, курс или услуга привязаны к сообществу.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           {TRACKS.map((t) => (
@@ -100,7 +99,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href="/catalog">Смотреть раздел <ArrowRight /></Link>
+                  <Link href="/courses">Смотреть курсы <ArrowRight /></Link>
                 </Button>
               </CardContent>
             </Card>
@@ -109,7 +108,7 @@ export default function Home() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Как это работает</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Как пользоваться</h2>
         <div className="grid gap-4 md:grid-cols-3">
           {STEPS.map((s) => (
             <Card key={s.title}>

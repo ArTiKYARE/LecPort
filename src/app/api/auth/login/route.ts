@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   await logAudit({
     userId: user.id,
     email: user.email,
-    userName: user.name,
+    userName: user.username ?? user.name ?? null,
     role: user.role,
     action: "login",
     details: `Вход: ${user.email}`,

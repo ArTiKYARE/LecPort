@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { readCatalog, type CatalogData } from "@/lib/server/catalog";
+import { readCatalog, enrichOwners, type CatalogData } from "@/lib/server/catalog";
 import type { Material } from "@/lib/types";
 import { getSessionUser } from "@/lib/server/session";
-import { hasFullAccess } from "@/lib/server/users";
+import { hasFullAccess, readUsers } from "@/lib/server/users";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +21,20 @@ export async function GET() {
   const cat = await readCatalog();
   const user = await getSessionUser();
   const full = user ? hasFullAccess(user) : false;
+  const users = await readUsers();
+  const enriched = enrichOwners(cat, users);
   return NextResponse.json({
     ok: true,
     catalog: {
-      sections: cat.sections,
-      subjects: cat.subjects,
-      sectionColors: cat.sectionColors,
-      subjectColors: cat.subjectColors,
-      organizations: cat.organizations,
-      materials: publicMaterials(cat, full),
+      sections: enriched.sections,
+      subjects: enriched.subjects,
+      sectionColors: enriched.sectionColors,
+      subjectColors: enriched.subjectColors,
+      organizations: enriched.organizations,
+      courses: enriched.courses,
+      services: enriched.services,
+      reviews: enriched.reviews,
+      materials: publicMaterials(enriched, full),
     },
   });
 }

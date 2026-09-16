@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { Material, Subject, Section, SectionColors, CardStyle, Organization } from './types';
+import type { Material, Subject, Section, SectionColors, CardStyle, Organization, Course, CourseModule, Service, Review } from './types';
 import { useAuth } from './auth';
 
 export type CatalogSnapshot = {
@@ -9,6 +9,9 @@ export type CatalogSnapshot = {
   subjects: Subject[];
   materials: Material[];
   organizations: Organization[];
+  courses: Course[];
+  services: Service[];
+  reviews: Review[];
   sectionColors: SectionColors;
   subjectColors: Record<string, string>;
 };
@@ -19,7 +22,7 @@ export type LegacyData = {
   materials: Material[] | null;
 };
 
-const EMPTY: CatalogSnapshot = { sections: [], subjects: [], materials: [], organizations: [], sectionColors: {}, subjectColors: {} };
+const EMPTY: CatalogSnapshot = { sections: [], subjects: [], materials: [], organizations: [], courses: [], services: [], reviews: [], sectionColors: {}, subjectColors: {} };
 
 const LS_LEGACY = [
   'lecport_materials_v1',
@@ -54,6 +57,9 @@ export function useCatalog() {
       sectionColors: { ...snap.sectionColors },
       subjectColors: { ...snap.subjectColors },
       organizations: snap.organizations ?? [],
+      courses: snap.courses ?? [],
+      services: snap.services ?? [],
+      reviews: snap.reviews ?? [],
     });
   };
 
@@ -113,6 +119,9 @@ export function useCatalog() {
   const subjects = state?.subjects ?? [];
   const materials = state?.materials ?? [];
   const organizations = state?.organizations ?? [];
+  const courses = state?.courses ?? [];
+  const services = state?.services ?? [];
+  const reviews = state?.reviews ?? [];
   const sectionColors = state?.sectionColors ?? ({} as SectionColors);
   const subjectColors = state?.subjectColors ?? {};
 
@@ -161,6 +170,57 @@ export function useCatalog() {
   const addMaterial = async (mat: Material) => { await mutate('addMaterial', { material: mat }); };
   const updateMaterial = async (id: string, patch: Partial<Material>) => { await mutate('updateMaterial', { id, patch }); };
   const deleteMaterial = async (id: string) => { await mutate('deleteMaterial', { id }); };
+  const promoteMaterial = async (id: string, days: number) => { await mutate('promoteMaterial', { id, days }); };
+  const unpromoteMaterial = async (id: string) => { await mutate('unpromoteMaterial', { id }); };
+
+  const addCourse = async (data: { title: string; description?: string; organizationId?: string; price?: number }): Promise<Course | null> => {
+    const prev = courses;
+    const snap = await mutate('addCourse', data);
+    if (!snap) return null;
+    return snap.courses.find((c) => !prev.some((p) => p.id === c.id)) ?? null;
+  };
+  const updateCourse = async (id: string, patch: Partial<Course>) => { await mutate('updateCourse', { id, patch }); };
+  const deleteCourse = async (id: string) => { await mutate('deleteCourse', { id }); };
+  const promoteCourse = async (id: string, days: number) => { await mutate('promoteCourse', { id, days }); };
+  const unpromoteCourse = async (id: string) => { await mutate('unpromoteCourse', { id }); };
+
+  const addService = async (data: { title: string; description?: string; category: string; priceType: Service["priceType"]; price?: number; organizationId?: string }): Promise<Service | null> => {
+    const prev = services;
+    const snap = await mutate('addService', data);
+    if (!snap) return null;
+    return snap.services.find((s) => !prev.some((p) => p.id === s.id)) ?? null;
+  };
+  const updateService = async (id: string, patch: Partial<Service>) => { await mutate('updateService', { id, patch }); };
+  const deleteService = async (id: string) => { await mutate('deleteService', { id }); };
+  const promoteService = async (id: string, days: number) => { await mutate('promoteService', { id, days }); };
+  const unpromoteService = async (id: string) => { await mutate('unpromoteService', { id }); };
+
+  const addReview = async (review: Omit<Review, "id" | "createdAt">) => { await mutate('addReview', review); };
+  const deleteReview = async (id: string) => { await mutate('deleteReview', { id }); };
+
+  /** Универсальная мутация org-роута (новые API для сообществ). Возвращает обновлённый каталог. */
+  const orgMutate = useCallback(async (action: string, payload: Record<string, unknown> = {}): Promise<CatalogSnapshot | null> => {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/org', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const j = await res.json();
+      if (res.ok && j?.catalog) {
+        apply(j.catalog);
+        return j.catalog;
+      }
+      console.error('[org]', j?.error ?? 'Операция не выполнена');
+      return null;
+    } catch (e) {
+      console.error('[org]', e);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const importLegacy = async () => {
     if (!state) return;
@@ -169,6 +229,9 @@ export function useCatalog() {
       subjects: readLegacy<Subject[]>('lecport_subjects_v1') ?? state.subjects,
       materials: readLegacy<Material[]>('lecport_materials_v1') ?? state.materials,
       organizations: state.organizations ?? [],
+      courses: state.courses ?? [],
+      services: state.services ?? [],
+      reviews: state.reviews ?? [],
       sectionColors: { ...readLegacy<Record<string, string>>('lecport_section_colors_v1'), ...state.sectionColors },
       subjectColors: { ...readLegacy<Record<string, string>>('lecport_subject_colors_v1'), ...state.subjectColors },
     };
@@ -188,6 +251,9 @@ export function useCatalog() {
     subjects,
     materials,
     organizations,
+    courses,
+    services,
+    reviews,
     sectionColors,
     subjectColors,
     loading: !state,
@@ -212,9 +278,24 @@ export function useCatalog() {
     addMaterial,
     updateMaterial,
     deleteMaterial,
+    promoteMaterial,
+    unpromoteMaterial,
     addOrganization,
     updateOrganization,
     deleteOrganization,
+    addCourse,
+    updateCourse,
+    deleteCourse,
+    promoteCourse,
+    unpromoteCourse,
+    addService,
+    updateService,
+    deleteService,
+    promoteService,
+    unpromoteService,
+    addReview,
+    deleteReview,
+    orgMutate,
   };
 }
 

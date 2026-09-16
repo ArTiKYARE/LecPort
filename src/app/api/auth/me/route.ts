@@ -15,7 +15,7 @@ export async function DELETE() {
     await logAudit({
       userId: user.id,
       email: user.email,
-      userName: user.name,
+      userName: user.username ?? user.name ?? null,
       role: user.role,
       action: "logout",
       details: `Выход: ${user.email}`,

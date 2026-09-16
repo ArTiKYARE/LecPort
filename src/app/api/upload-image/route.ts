@@ -11,11 +11,11 @@ function getIp(req: NextRequest) {
 const ALLOWED = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".avif"];
 const MAX_BYTES = 15 * 1024 * 1024;
 
-/** Загрузка картинки для карточки каталога (раздела/предмета). Только модератор и админ. */
+/** Загрузка картинки для карточки/аватара сообщества. Доступно вошедшим пользователям. */
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
-  if (!user || (user.role !== "admin" && user.role !== "moderator")) {
-    return NextResponse.json({ error: 'Загрузка доступна модератору и администратору' }, { status: 403 });
+  if (!user) {
+    return NextResponse.json({ error: 'Войдите в аккаунт' }, { status: 401 });
   }
   try {
     const form = await req.formData();
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     await logAudit({
       userId: user.id,
       email: user.email,
-      userName: user.name,
+      userName: user.name ?? null,
       role: user.role,
       action: "section_color",
       details: `Загрузка изображения карточки: ${file.name}`,

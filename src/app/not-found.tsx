@@ -11,7 +11,10 @@ export default function NotFound() {
           <FileQuestion className="mx-auto size-8 text-muted-foreground" />
           <h1 className="text-xl font-bold">Страница не найдена</h1>
           <p className="text-sm text-muted-foreground">Такой страницы нет или она была перемещена.</p>
-          <Button asChild><Link href="/catalog">В каталог</Link></Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild><Link href="/organizations">К сообществам</Link></Button>
+            <Button asChild variant="outline"><Link href="/">На главную</Link></Button>
+          </div>
         </CardContent>
       </Card>
     </div>

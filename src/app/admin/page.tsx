@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ShieldCheck, Upload, FileText, Loader2, Users,
   ScrollText, Search, Crown, UserCog, Pencil, Trash2, X,
-  LayoutGrid, Building2,
+  LayoutGrid, Building2, Sparkles, KeyRound,
 } from "lucide-react";
 import { type Material } from "@/lib/types";
 import { sectionSoftStyle, resolveSubjectColor } from "@/lib/sections";
@@ -28,6 +28,7 @@ type AdminUser = {
   role: "buyer" | "moderator" | "admin";
   hasSubscription: boolean;
   subscriptionPlan?: string;
+  premiumUntil?: string;
   createdAt: string;
 };
 
@@ -61,6 +62,17 @@ const ACTION_LABELS: Record<string, string> = {
   subject_delete: "Удаление предмета",
   subject_color: "Смена цвета предмета",
   role_change: "Смена роли",
+  premium_grant: "Выдача премиума",
+  premium_revoke: "Снятие премиума",
+  course_create: "Создание курса",
+  course_update: "Изменение курса",
+  course_delete: "Удаление курса",
+  course_promote: "Продвижение курса",
+  service_create: "Создание услуги",
+  service_update: "Изменение услуги",
+  service_delete: "Удаление услуги",
+  service_promote: "Продвижение услуги",
+  review_add: "Добавление отзыва",
   page_view: "Просмотр страницы",
 };
 
@@ -234,7 +246,7 @@ function Pager({ page, pageSize, total, onPage, onPageSize, pageSizes = [10, 20,
 function MaterialsTab() {
   const {
     materials, subjects, sections, organizations, sectionColors,
-    addMaterial, updateMaterial, deleteMaterial,
+    addMaterial, updateMaterial, deleteMaterial, promoteMaterial, unpromoteMaterial,
   } = useCatalog();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -466,12 +478,26 @@ function MaterialsTab() {
                     )}
                     {m.price != null && m.price > 0 && <Badge variant="secondary">{m.price} ₽</Badge>}
                     {m.price != null && m.price === 0 && <Badge variant="outline">Бесплатно</Badge>}
+                    {m.promotedUntil && new Date(m.promotedUntil).getTime() > Date.now() && (
+                      <Badge variant="secondary" className="gap-1 text-amber-600 dark:text-amber-400">
+                        <Sparkles className="size-3" />В топе до {new Date(m.promotedUntil).toLocaleDateString("ru-RU")}
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={() => startEdit(m)} className="action-btn">
                     <Pencil />Редактировать
                   </Button>
+                  {m.promotedUntil && new Date(m.promotedUntil).getTime() > Date.now() ? (
+                    <Button variant="ghost" size="sm" className="action-btn" onClick={() => { unpromoteMaterial(m.id); toast.success(`Продвижение «${m.title}» снято`); }}>
+                      <Sparkles />Снять из топа
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="action-btn" onClick={() => { promoteMaterial(m.id, 7); logClient("material_promote", `Материал «${m.title}» продвинут`); toast.success(`«${m.title}» добавлен в топ на 7 дней`); }}>
+                      <Sparkles />В топ
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => remove(m.id, m.title)} className="action-btn">
                     <Trash2 />
                   </Button>
@@ -488,7 +514,7 @@ function MaterialsTab() {
 }
 
 function StructureCard() {
-  const { sections, subjects, organizations, sectionColors, subjectColors } = useCatalog();
+  const { sections, subjects, organizations, courses, services, sectionColors, subjectColors } = useCatalog();
   return (
     <Card>
       <CardHeader>
@@ -535,7 +561,7 @@ function StructureCard() {
               <div className="text-sm font-medium">Предметы · {subjects.length}</div>
               <div className="line-clamp-3 break-words text-xs text-muted-foreground">{subjects.map((s) => s.name).join(", ")}</div>
             </div>
-<Button asChild size="sm" variant="outline" className="action-btn shrink-0">
+            <Button asChild size="sm" variant="outline" className="action-btn shrink-0">
               <Link href="/admin/subjects">Настроить</Link>
             </Button>
           </div>
@@ -562,6 +588,56 @@ function StructureCard() {
             </div>
             <Button asChild size="sm" variant="outline" className="action-btn shrink-0">
               <Link href="/admin/organizations">Настроить</Link>
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+            <div className="flex -space-x-1.5">
+              {courses.slice(0, 5).map((c) => (
+                <span
+                  key={c.id}
+                  className="flex size-4 items-center justify-center rounded-full border-2 border-card bg-amber-500/15 text-[8px] font-bold text-amber-600 dark:text-amber-400"
+                  title={c.title}
+                >
+                  {c.title.charAt(0).toUpperCase()}
+                </span>
+              ))}
+              {courses.length > 5 && (
+                <span className="flex size-4 items-center justify-center rounded-full border-2 border-card bg-secondary text-[8px] font-bold text-secondary-foreground">
+                  +
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">Курсы · {courses.length}</div>
+              <div className="line-clamp-3 break-words text-xs text-muted-foreground">{courses.map((c) => c.title).join(", ")}</div>
+            </div>
+            <Button asChild size="sm" variant="outline" className="action-btn shrink-0">
+              <Link href="/admin/courses">Настроить</Link>
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+            <div className="flex -space-x-1.5">
+              {services.slice(0, 5).map((s) => (
+                <span
+                  key={s.id}
+                  className="flex size-4 items-center justify-center rounded-full border-2 border-card bg-sky-500/15 text-[8px] font-bold text-sky-600 dark:text-sky-400"
+                  title={s.title}
+                >
+                  {s.title.charAt(0).toUpperCase()}
+                </span>
+              ))}
+              {services.length > 5 && (
+                <span className="flex size-4 items-center justify-center rounded-full border-2 border-card bg-secondary text-[8px] font-bold text-secondary-foreground">
+                  +
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">Услуги · {services.length}</div>
+              <div className="line-clamp-3 break-words text-xs text-muted-foreground">{services.map((s) => s.title).join(", ")}</div>
+            </div>
+            <Button asChild size="sm" variant="outline" className="action-btn shrink-0">
+              <Link href="/admin/services">Настроить</Link>
             </Button>
           </div>
         </CardContent>
@@ -616,6 +692,58 @@ function UsersTab() {
     }
   };
 
+  const changePremium = async (userId: string, action: "grant" | "revoke", days = 30) => {
+    setBusyId(userId);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, premiumAction: action, premiumDays: days }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Ошибка");
+      setUsers((prev) => prev.map((u) => (u.id === userId ? j.user : u)));
+      const name = j.user?.name ?? "Пользователь";
+      if (action === "grant") {
+        toast.success(`${name} получил премиум на ${days} дн.`);
+        logClient("premium_grant", `Премиум ${days} дн. → ${name}`);
+      } else {
+        toast.success(`Премиум снят у пользователя ${name}`);
+        logClient("premium_revoke", `Премиум снят: ${name}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const changeSubscription = async (userId: string, action: "grant" | "revoke", days = 30) => {
+    setBusyId(userId);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, subscriptionAction: action, subscriptionDays: days }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Ошибка");
+      setUsers((prev) => prev.map((u) => (u.id === userId ? j.user : u)));
+      const name = j.user?.name ?? "Пользователь";
+      if (action === "grant") {
+        toast.success(`${name} получил глобальную подписку Премиум на ${days} дн.`);
+        logClient("subscription_grant", `Глобальная подписка ${days} дн. → ${name}`);
+      } else {
+        toast.success(`Глобальная подписка снята у пользователя ${name}`);
+        logClient("subscription_revoke", `Глобальная подписка снята: ${name}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const shown = users.filter((u) => {
     if (filter !== "all" && u.role !== filter) return false;
     return true;
@@ -651,6 +779,9 @@ function UsersTab() {
                     <span className="font-medium">{u.name}</span>
                     <RoleBadge role={u.role} />
                     {u.hasSubscription && <Badge variant="success">Подписка</Badge>}
+                    {u.premiumUntil && new Date(u.premiumUntil).getTime() > Date.now()
+                      ? <Badge variant="price">Премиум до {new Date(u.premiumUntil).toLocaleDateString("ru-RU")}</Badge>
+                      : u.premiumUntil && <Badge variant="outline">Премиум истёк</Badge>}
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">{u.email} · рег. {new Date(u.createdAt).toLocaleDateString("ru-RU")}</div>
                 </div>
@@ -667,6 +798,34 @@ function UsersTab() {
                     <option value="moderator">Модератор</option>
                     <option value="admin">Администратор</option>
                   </select>
+                  {u.premiumUntil && new Date(u.premiumUntil).getTime() > Date.now() ? (
+                    <Button size="sm" variant="outline" className="action-btn" disabled={busyId === u.id} onClick={() => changePremium(u.id, "revoke")}>
+                      <Crown />Снять премиум
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="sm" variant="outline" className="action-btn" disabled={busyId === u.id} onClick={() => changePremium(u.id, "grant", 30)} title="Премиум на 30 дней">
+                        <Crown />30 дн
+                      </Button>
+                      <Button size="sm" variant="outline" className="action-btn" disabled={busyId === u.id} onClick={() => changePremium(u.id, "grant", 90)} title="Премиум на 90 дней">
+                        <Crown />90 дн
+                      </Button>
+                    </>
+                  )}
+                  {u.hasSubscription ? (
+                    <Button size="sm" variant="outline" className="action-btn" disabled={busyId === u.id} onClick={() => changeSubscription(u.id, "revoke")} title="Снять глобальную подписку Премиум">
+                      <KeyRound className="size-4" />Снять подписку
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="sm" variant="outline" className="action-btn" disabled={busyId === u.id} onClick={() => changeSubscription(u.id, "grant", 30)} title="Глобальная подписка Премиум на 30 дней — доступ + право создавать сообщества">
+                        <KeyRound className="size-4" />Подписка 30 дн
+                      </Button>
+                      <Button size="sm" variant="outline" className="action-btn" disabled={busyId === u.id} onClick={() => changeSubscription(u.id, "grant", 365)} title="Глобальная подписка Премиум на год">
+                        <KeyRound className="size-4" />Год
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

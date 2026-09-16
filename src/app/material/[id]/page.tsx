@@ -45,7 +45,7 @@ export default function MaterialPage() {
           {loading ? (
             <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" />Загрузка...</span>
           ) : (
-            <>Материал не найден. <Link href="/catalog" className="underline">Вернуться в каталог</Link></>
+            <>Материал не найден. <Link href="/organizations" className="underline">К сообществам</Link></>
           )}
         </CardContent>
       </Card>
@@ -59,7 +59,10 @@ export default function MaterialPage() {
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" asChild>
-        <Link href="/catalog"><ArrowLeft />Каталог</Link>
+        <Link href={mat.organizationId ? `/organization/${mat.organizationId}` : "/courses"}>
+          <ArrowLeft />
+          {mat.organizationId ? "В сообщество" : "К курсам"}
+        </Link>
       </Button>
 
       <Card>

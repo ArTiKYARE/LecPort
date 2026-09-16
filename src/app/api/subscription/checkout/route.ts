@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (!yookassaConfigured()) {
     const updated = await activateSubscription(user.id, plan.id);
     await logAudit({
-      userId: user.id, email: user.email, userName: user.name, role: user.role,
+      userId: user.id, email: user.email, userName: user.name ?? null, role: user.role,
       action: "subscription_buy", details: `Демо-активация: ${plan.name} (касса не настроена)`, ip: getIp(req),
     });
     return NextResponse.json({ demo: true, user: updated });
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     });
     await savePending(payment.id, { userId: user.id, plan: plan.id, createdAt: new Date().toISOString() });
     await logAudit({
-      userId: user.id, email: user.email, userName: user.name, role: user.role,
+      userId: user.id, email: user.email, userName: user.name ?? null, role: user.role,
       action: "subscription_checkout", details: `Платёж ${payment.id}: ${plan.name}, ${plan.priceRub} ₽`, ip: getIp(req),
     });
     return NextResponse.json({ confirmationUrl: payment.confirmation?.confirmation_url ?? null, paymentId: payment.id });
