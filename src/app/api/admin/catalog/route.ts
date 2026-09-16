@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/server/session";
 import { readCatalog, writeCatalog, type CatalogData } from "@/lib/server/catalog";
-import type { Material, Section, Subject } from "@/lib/types";
+import type { Material, Section, Subject, Organization, CardStyle } from "@/lib/types";
 import { SECTION_COLORS_DEFAULT } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,43 @@ export async function POST(req: NextRequest) {
   const action = body.action;
 
   switch (action) {
+    case "addOrganization": {
+      const name = String(body.name ?? "").trim();
+      if (!name) return bad("Название организации не может быть пустым");
+      const newOrg: Organization = {
+        id: `org-${slugify(name)}-${Date.now()}`,
+        name,
+        description: String(body.description ?? "").trim() || undefined,
+        ownerId: String(body.ownerId ?? "") || undefined,
+        verified: Boolean(body.verified),
+        createdAt: new Date().toISOString(),
+      };
+      cat.organizations = [...cat.organizations, newOrg];
+      await writeCatalog(cat);
+      return ok(cat);
+    }
+    case "updateOrganization": {
+      const id = String(body.id ?? "");
+      if (!id || !cat.organizations.some((o) => o.id === id)) return bad("Организация не найдена", 404);
+      const name = String(body.name ?? "").trim();
+      cat.organizations = cat.organizations.map((o) => {
+        if (o.id !== id) return o;
+        const next: Organization = { ...o };
+        if (name) next.name = name;
+        if (typeof body.description === "string") next.description = body.description.trim() || undefined;
+        if (typeof body.verified === "boolean") next.verified = body.verified;
+        return next;
+      });
+      await writeCatalog(cat);
+      return ok(cat);
+    }
+    case "deleteOrganization": {
+      const id = String(body.id ?? "");
+      if (!id || !cat.organizations.some((o) => o.id === id)) return bad("Организация не найдена", 404);
+      cat.organizations = cat.organizations.filter((o) => o.id !== id);
+      await writeCatalog(cat);
+      return ok(cat);
+    }
     case "addSection": {
       const name = String(body.name ?? "").trim();
       if (!name) return bad("Название раздела не может быть пустым");
@@ -139,6 +176,17 @@ export async function POST(req: NextRequest) {
       await writeCatalog(cat);
       return ok(cat);
     }
+    case "setSectionCard": {
+      const id = String(body.id ?? "");
+      const card = body.card as CardStyle | undefined;
+      if (!id) return bad("Нет раздела");
+      if (!card || typeof card !== "object") return bad("Оформление не задано");
+      const cur = cat.sections.find((s) => s.id === id);
+      if (!cur) return bad("Раздел не найден", 404);
+      cat.sections = cat.sections.map((s) => (s.id === id ? { ...s, card: { ...cur.card, ...card, imageUrl: card.imageUrl || undefined } } : s));
+      await writeCatalog(cat);
+      return ok(cat);
+    }
     case "resetSectionColors": {
       cat.sectionColors = { ...SECTION_COLORS_DEFAULT };
       await writeCatalog(cat);
@@ -150,6 +198,17 @@ export async function POST(req: NextRequest) {
       if (!id) return bad("Нет предмета");
       if (!/^#[0-9a-f]{6}$/i.test(color)) return bad("Некорректный цвет");
       cat.subjectColors[id] = color;
+      await writeCatalog(cat);
+      return ok(cat);
+    }
+    case "setSubjectCard": {
+      const id = String(body.id ?? "");
+      const card = body.card as CardStyle | undefined;
+      if (!id) return bad("Нет предмета");
+      if (!card || typeof card !== "object") return bad("Оформление не задано");
+      const cur = cat.subjects.find((s) => s.id === id);
+      if (!cur) return bad("Предмет не найден", 404);
+      cat.subjects = cat.subjects.map((s) => (s.id === id ? { ...s, card: { ...cur.card, ...card, imageUrl: card.imageUrl || undefined } } : s));
       await writeCatalog(cat);
       return ok(cat);
     }
@@ -173,6 +232,7 @@ export async function POST(req: NextRequest) {
       cat.sections = Array.isArray(snapshot.sections) ? snapshot.sections : cat.sections;
       cat.subjects = Array.isArray(snapshot.subjects) ? snapshot.subjects : cat.subjects;
       cat.materials = Array.isArray(snapshot.materials) ? snapshot.materials : cat.materials;
+      cat.organizations = Array.isArray(snapshot.organizations) ? snapshot.organizations : cat.organizations;
       cat.sectionColors = { ...SECTION_COLORS_DEFAULT, ...(snapshot.sectionColors ?? {}) };
       cat.subjectColors = typeof snapshot.subjectColors === "object" && snapshot.subjectColors ? snapshot.subjectColors : {};
       await writeCatalog(cat);

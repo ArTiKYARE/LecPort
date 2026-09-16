@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { Material, Subject, Section, SectionColors } from './types';
+import type { Material, Subject, Section, SectionColors, CardStyle, Organization } from './types';
 import { useAuth } from './auth';
 
 export type CatalogSnapshot = {
   sections: Section[];
   subjects: Subject[];
   materials: Material[];
+  organizations: Organization[];
   sectionColors: SectionColors;
   subjectColors: Record<string, string>;
 };
@@ -18,7 +19,7 @@ export type LegacyData = {
   materials: Material[] | null;
 };
 
-const EMPTY: CatalogSnapshot = { sections: [], subjects: [], materials: [], sectionColors: {}, subjectColors: {} };
+const EMPTY: CatalogSnapshot = { sections: [], subjects: [], materials: [], organizations: [], sectionColors: {}, subjectColors: {} };
 
 const LS_LEGACY = [
   'lecport_materials_v1',
@@ -48,7 +49,12 @@ export function useCatalog() {
   const [busy, setBusy] = useState(false);
 
   const apply = (snap: CatalogSnapshot) => {
-    setState({ ...snap, sectionColors: { ...snap.sectionColors }, subjectColors: { ...snap.subjectColors } });
+    setState({
+      ...snap,
+      sectionColors: { ...snap.sectionColors },
+      subjectColors: { ...snap.subjectColors },
+      organizations: snap.organizations ?? [],
+    });
   };
 
   const load = useCallback(async () => {
@@ -106,10 +112,16 @@ export function useCatalog() {
   const sections = state?.sections ?? [];
   const subjects = state?.subjects ?? [];
   const materials = state?.materials ?? [];
+  const organizations = state?.organizations ?? [];
   const sectionColors = state?.sectionColors ?? ({} as SectionColors);
   const subjectColors = state?.subjectColors ?? {};
 
-  const addSection = async (name: string) => { await mutate('addSection', { name }); };
+  const addSection = async (name: string): Promise<Section | null> => {
+    const prev = sections;
+    const snap = await mutate('addSection', { name });
+    if (!snap) return null;
+    return snap.sections.find((s) => !prev.some((p) => p.id === s.id)) ?? null;
+  };
   const renameSection = async (id: string, name: string) => { await mutate('renameSection', { id, name }); };
   const deleteSection = async (id: string, opts: { action: 'delete' } | { action: 'move'; moveToId: string }) => {
     const affected = materials.filter((m) => m.lessonType === id).length;
@@ -117,7 +129,12 @@ export function useCatalog() {
     return affected;
   };
 
-  const addSubject = async (name: string) => { await mutate('addSubject', { name }); };
+  const addSubject = async (name: string): Promise<Subject | null> => {
+    const prev = subjects;
+    const snap = await mutate('addSubject', { name });
+    if (!snap) return null;
+    return snap.subjects.find((s) => !prev.some((p) => p.id === s.id)) ?? null;
+  };
   const renameSubject = async (id: string, name: string) => { await mutate('renameSubject', { id, name }); };
   const deleteSubject = async (id: string, opts: { action: 'delete' } | { action: 'move'; moveToId: string }) => {
     const affected = materials.filter((m) => m.subjectId === id).length;
@@ -126,10 +143,20 @@ export function useCatalog() {
   };
 
   const setSectionColor = async (id: string, color: string) => { await mutate('setSectionColor', { id, color }); };
+  const setSectionCard = async (id: string, card: Partial<CardStyle>) => { await mutate('setSectionCard', { id, card }); };
   const resetSectionColors = async () => { await mutate('resetSectionColors'); };
   const setSubjectColor = async (id: string, color: string) => { await mutate('setSubjectColor', { id, color }); };
+  const setSubjectCard = async (id: string, card: Partial<CardStyle>) => { await mutate('setSubjectCard', { id, card }); };
   const clearSubjectColor = async (id: string) => { await mutate('clearSubjectColor', { id }); };
   const resetSubjectColors = async () => { await mutate('resetSubjectColors'); };
+
+  const addOrganization = async (name: string, description?: string): Promise<Organization | null> => {
+    const snap = await mutate('addOrganization', { name, description });
+    if (!snap) return null;
+    return snap.organizations.find((o) => !organizations.some((p) => p.id === o.id)) ?? null;
+  };
+  const updateOrganization = async (id: string, patch: Partial<Pick<Organization, "name" | "description" | "verified">>) => { await mutate('updateOrganization', { id, ...patch }); };
+  const deleteOrganization = async (id: string) => { await mutate('deleteOrganization', { id }); };
 
   const addMaterial = async (mat: Material) => { await mutate('addMaterial', { material: mat }); };
   const updateMaterial = async (id: string, patch: Partial<Material>) => { await mutate('updateMaterial', { id, patch }); };
@@ -141,6 +168,7 @@ export function useCatalog() {
       sections: readLegacy<Section[]>('lecport_sections_v1') ?? state.sections,
       subjects: readLegacy<Subject[]>('lecport_subjects_v1') ?? state.subjects,
       materials: readLegacy<Material[]>('lecport_materials_v1') ?? state.materials,
+      organizations: state.organizations ?? [],
       sectionColors: { ...readLegacy<Record<string, string>>('lecport_section_colors_v1'), ...state.sectionColors },
       subjectColors: { ...readLegacy<Record<string, string>>('lecport_subject_colors_v1'), ...state.subjectColors },
     };
@@ -159,6 +187,7 @@ export function useCatalog() {
     sections,
     subjects,
     materials,
+    organizations,
     sectionColors,
     subjectColors,
     loading: !state,
@@ -174,13 +203,18 @@ export function useCatalog() {
     renameSubject,
     deleteSubject,
     setSectionColor,
+    setSectionCard,
     resetSectionColors,
     setSubjectColor,
+    setSubjectCard,
     clearSubjectColor,
     resetSubjectColors,
     addMaterial,
     updateMaterial,
     deleteMaterial,
+    addOrganization,
+    updateOrganization,
+    deleteOrganization,
   };
 }
 

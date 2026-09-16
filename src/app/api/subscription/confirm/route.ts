@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/server/session";
-import { activateSubscription } from "@/lib/server/users";
+import { activateSubscription, hasFullAccess } from "@/lib/server/users";
 import { logAudit } from "@/lib/server/audit";
 import { getYooPayment, yookassaConfigured } from "@/lib/server/yookassa";
 import { pendingForUser, removePending } from "@/lib/server/pending";
@@ -12,7 +12,7 @@ import { pendingForUser, removePending } from "@/lib/server/pending";
 export async function POST() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Требуется вход" }, { status: 401 });
-  if (user.hasSubscription) return NextResponse.json({ activated: true, user });
+  if (hasFullAccess(user)) return NextResponse.json({ activated: true, user });
 
   if (!yookassaConfigured()) return NextResponse.json({ activated: false });
 

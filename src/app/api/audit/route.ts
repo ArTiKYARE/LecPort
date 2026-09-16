@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get("action");
   const q = (searchParams.get("q") ?? "").toLowerCase();
   const limit = Math.min(Number(searchParams.get("limit") ?? 200), 500);
+  const offset = Math.max(0, Number(searchParams.get("offset") ?? 0));
 
   let all = await readAudit();
   if (action && action !== "all") all = all.filter((r) => r.action === action);
@@ -24,7 +25,8 @@ export async function GET(req: NextRequest) {
       `${r.email ?? ""} ${r.userName ?? ""} ${r.details ?? ""} ${r.action}`.toLowerCase().includes(q)
     );
   }
-  return NextResponse.json({ items: all.slice(0, limit), total: all.length });
+  const total = all.length;
+  return NextResponse.json({ items: all.slice(offset, offset + limit), total });
 }
 
 // POST — залогировать действие текущего пользователя (или гостя)

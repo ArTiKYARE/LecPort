@@ -1,19 +1,21 @@
 "use client";
 import Link from "next/link";
-import { UserRound, CreditCard, FolderOpen, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { UserRound, CreditCard, FolderOpen, ShieldCheck, ArrowRight, Loader2, Ban } from "lucide-react";
 import { useAuth, ROLE_LABELS, canAccessFull } from "@/lib/auth";
 import { planById, formatRub } from "@/lib/plans";
 import { useCatalog } from "@/lib/store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 export default function CabinetPage() {
-  const { user, role, hasSubscription, loading } = useAuth();
+  const { user, role, hasSubscription, loading, cancelSubscription } = useAuth();
   const { materials, subjects, sections, loading: catalogLoading } = useCatalog();
-  const fullAccess = canAccessFull(role, hasSubscription);
+  const fullAccess = canAccessFull(role, hasSubscription, user?.subscriptionExpiresAt);
   const subjName = (id: string) => subjects.find((s) => s.id === id)?.name ?? id;
   const typeName = (id: string) => sections.find((t) => t.id === id)?.name ?? id;
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   if (loading) {
     return (
@@ -79,7 +81,31 @@ export default function CabinetPage() {
                 <p className="text-muted-foreground">
                   {(() => { const p = planById(user.subscriptionPlan); return p ? `${formatRub(p.priceRub)} · ${p.period}` : ""; })()}
                 </p>
-                <div><Button variant="outline" size="sm" asChild><Link href="/subscription">Сменить тариф</Link></Button></div>
+                {user.subscriptionExpiresAt && (
+                  <p className="text-muted-foreground">
+                    Доступ до <span className="font-medium text-foreground">{new Date(user.subscriptionExpiresAt).toLocaleDateString("ru-RU")}</span>
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild><Link href="/subscription">Сменить тариф</Link></Button>
+                  {user.cancelAtPeriodEnd ? (
+                    <Badge variant="warning"><Ban className="size-3.5" />Автопродление отключено</Badge>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="action-btn" onClick={async () => {
+                      setCancelBusy(true);
+                      await cancelSubscription();
+                      setCancelBusy(false);
+                    }} disabled={cancelBusy}>
+                      {cancelBusy && <Loader2 className="size-4 animate-spin" />}
+                      Прекратить списания
+                    </Button>
+                  )}
+                </div>
+                {!user.cancelAtPeriodEnd && (
+                  <p className="text-xs text-muted-foreground">
+                    Доступ сохранится до конца оплаченного периода. Деньги за оплаченный срок не возвращаем.
+                  </p>
+                )}
               </>
             ) : (
               <>

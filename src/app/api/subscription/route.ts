@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readUsers, writeUsers, toPublic } from "@/lib/server/users";
+import { readUsers, writeUsers, toPublic, activateSubscription, cancelAutoRenew } from "@/lib/server/users";
 import { getSessionUser } from "@/lib/server/session";
 import { logAudit } from "@/lib/server/audit";
 import { yookassaConfigured } from "@/lib/server/yookassa";
@@ -18,40 +18,33 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const plan = String(body?.plan ?? "month");
 
-  const users = await readUsers();
-  const rec = users.find((u) => u.id === user.id);
-  if (!rec) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
-  rec.hasSubscription = true;
-  rec.subscriptionPlan = plan;
-  await writeUsers(users);
+  const updated = await activateSubscription(user.id, plan);
+  if (!updated) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
   await logAudit({
-    userId: rec.id,
-    email: rec.email,
-    userName: rec.name,
-    role: rec.role,
+    userId: updated.id,
+    email: updated.email,
+    userName: updated.name,
+    role: updated.role,
     action: "subscription_buy",
     details: `Подписка: ${plan}`,
     ip: getIp(req),
   });
-  return NextResponse.json({ user: toPublic(rec) });
+  return NextResponse.json({ user: updated });
 }
 
 export async function DELETE(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Требуется вход" }, { status: 401 });
-  const users = await readUsers();
-  const rec = users.find((u) => u.id === user.id);
-  if (!rec) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
-  rec.hasSubscription = false;
-  await writeUsers(users);
+  const updated = await cancelAutoRenew(user.id);
+  if (!updated) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
   await logAudit({
-    userId: rec.id,
-    email: rec.email,
-    userName: rec.name,
-    role: rec.role,
+    userId: updated.id,
+    email: updated.email,
+    userName: updated.name,
+    role: updated.role,
     action: "subscription_cancel",
-    details: "Отмена подписки",
+    details: "Автопродление отключено (доступ сохранён до конца оплаченного периода)",
     ip: getIp(req),
   });
-  return NextResponse.json({ user: toPublic(rec) });
+  return NextResponse.json({ user: updated });
 }

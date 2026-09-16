@@ -1,13 +1,43 @@
 export type LessonType = string;
 
+/** Продавец на площадке: любой пользователь может создать организацию и вести от её имени продажи. */
+export type Organization = {
+  id: string;
+  name: string;
+  description?: string;
+  /** URL аватара организации (обычный файл из /card-image/... или внешняя ссылка). */
+  avatar?: string;
+  /** id владельца (UserRecord.id). */
+  ownerId?: string;
+  /** Отметка «проверено площадкой». */
+  verified?: boolean;
+  createdAt: string;
+};
+
+/** Оформление цветной карточки каталога (раздел/предмет). */
+export type CardStyle = {
+  /** URL картинки-подложки карточки. Если нет — обычная цветная заливка. */
+  imageUrl?: string;
+  /** Как вписать картинку в карточку: cover — заполнить, contain — вписать целиком. */
+  imageFit?: "cover" | "contain";
+  /** Какая часть изображения видна: background-position, например "25% 30%". По умолчанию центр. */
+  position?: string;
+  /** Стеклянный эффект (прозрачные панели, blur, орбы). По умолчанию true. */
+  glass?: boolean;
+  /** Иконка карточки: строковый ключ из SECTION_ICON_OPTIONS. Если не задана — используется дефолтная. */
+  icon?: string;
+};
+
 export type Section = {
   id: string;
   name: string;
+  card?: CardStyle;
 };
 
 export type Subject = {
   id: string;
   name: string;
+  card?: CardStyle;
 };
 
 export type Material = {
@@ -16,11 +46,15 @@ export type Material = {
   description: string;
   subjectId: string;
   lessonType: LessonType;
+  /** Организация-продавец. Если нет — материал считается базовым (каталог платформы). */
+  organizationId?: string;
   fileUrl?: string; // /uploads/... или внешняя ссылка
   driveUrl?: string; // ссылка на Google Диск
+  hasFile?: boolean;
+  hasDrive?: boolean;
   fileName?: string;
   previewText?: string;
-  price?: number; // если 0 — входит в подписку
+  price?: number; // если 0/undefined — входит в подписку или бесплатный
   createdAt: string;
 };
 
@@ -28,6 +62,17 @@ export const LESSON_TYPES: { id: LessonType; name: string }[] = [
   { id: 'lecture', name: 'Лекция' },
   { id: 'practice', name: 'Практика' },
   { id: 'lab', name: 'Лабораторная работа' },
+];
+
+/** Стартовая организация (используется, пока админ не создал свои). */
+export const ORGANIZATION_SEED: Organization[] = [
+  {
+    id: 'org-lecport',
+    name: 'LecPort',
+    description: 'Базовая организация платформы. Материалы публикуются от её имени, пока вы не создали свою.',
+    verified: true,
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 /** Стартовый набор разделов (дальше ими управляет админ/модератор). */

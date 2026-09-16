@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { LessonType } from "./types";
+import type { CardStyle, LessonType } from "./types";
 
 /** Мягкий фон + цветной текст для бейджей/иконок раздела. */
 export function sectionSoftStyle(color: string): CSSProperties {
@@ -73,4 +73,28 @@ export function glassPanel(): CSSProperties {
     backgroundColor: "rgba(255, 255, 255, 0.16)",
     borderColor: "rgba(255, 255, 255, 0.35)",
   };
+}
+
+/** Фон карточки: картинка (cover/contain) либо цветной градиент, если фото нет. */
+export function cardBackStyle(card: CardStyle | undefined, color: string): CSSProperties {
+  if (card?.imageUrl) {
+    return {
+      backgroundColor: color,
+      backgroundImage: `url(${card.imageUrl})`,
+      backgroundSize: card.imageFit === "contain" ? "contain" : "cover",
+      backgroundPosition: card.position ?? "center",
+      backgroundRepeat: "no-repeat",
+    };
+  }
+  return { background: `linear-gradient(135deg, ${color}, ${color}CC)` };
+}
+
+/** Включён ли стеклянный эффект (по умолчанию да). */
+export function glassEnabled(card: CardStyle | undefined): boolean {
+  return card?.glass !== false;
+}
+
+/** Цвет текста на карточке: белый поверх фото, контрастный — на цветной заливке. */
+export function cardTextColor(card: CardStyle | undefined, color: string): string {
+  return card?.imageUrl ? "#ffffff" : contrastOn(color);
 }

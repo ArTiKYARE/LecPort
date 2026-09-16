@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
 import bcrypt from "bcryptjs";
+import { planById } from "@/lib/plans";
 
 export type UserRole = "buyer" | "moderator" | "admin";
 
@@ -12,6 +13,8 @@ export type UserRecord = {
   role: UserRole;
   hasSubscription: boolean;
   subscriptionPlan?: string;
+  subscriptionExpiresAt?: string;
+  cancelAtPeriodEnd?: boolean;
   createdAt: string;
 };
 
@@ -64,8 +67,35 @@ export async function activateSubscription(userId: string, plan: string): Promis
   const users = await readUsers();
   const rec = users.find((u) => u.id === userId);
   if (!rec) return null;
+
+  const months = planById(plan)?.months ?? 1;
+  // Новый период отсчитываем от текущего конца (если он в будущем) — продление.
+  const base = rec.subscriptionExpiresAt ? Math.max(Date.now(), Date.parse(rec.subscriptionExpiresAt)) : Date.now();
   rec.hasSubscription = true;
   rec.subscriptionPlan = plan;
+  rec.subscriptionExpiresAt = new Date(base + months * 30 * 24 * 60 * 60 * 1000).toISOString();
+  rec.cancelAtPeriodEnd = false;
+
+  await writeUsers(users);
+  return toPublic(rec);
+}
+
+/** У пользователя есть доступ к полному содержимому (роль или активная подписка). */
+export function hasFullAccess(u: Pick<UserRecord, "role" | "hasSubscription" | "subscriptionExpiresAt">): boolean {
+  if (u.role === "admin" || u.role === "moderator") return true;
+  if (u.role === "buyer" && u.hasSubscription) {
+    if (!u.subscriptionExpiresAt) return true;
+    return Date.parse(u.subscriptionExpiresAt) > Date.now();
+  }
+  return false;
+}
+
+/** Прекращение автопродления: доступ сохраняется до конца оплаченного периода. */
+export async function cancelAutoRenew(userId: string): Promise<PublicUser | null> {
+  const users = await readUsers();
+  const rec = users.find((u) => u.id === userId);
+  if (!rec) return null;
+  rec.cancelAtPeriodEnd = true;
   await writeUsers(users);
   return toPublic(rec);
 }

@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { getSessionUser } from "@/lib/server/session";
+import { hasFullAccess } from "@/lib/server/users";
+import { verifyDownload, watermarkPdf, stampOfficeMeta, watermarkTxt } from "@/lib/server/access";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +25,10 @@ const MIME: Record<string, string> = {
   ".mp3": "audio/mpeg",
 };
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Требуется вход" }, { status: 401 });
+
   const { name } = await params;
   const decoded = decodeURIComponent(name);
 
@@ -30,20 +37,51 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ nam
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const filePath = path.join(process.cwd(), "public", "uploads", decoded);
+  const isStaff = hasFullAccess(user) && (user.role === "admin" || user.role === "moderator");
+  const canAccess = hasFullAccess(user);
 
+  if (!canAccess) {
+    return NextResponse.json({ error: "Нужна подписка" }, { status: 403 });
+  }
+
+  // Для обычных покупателей ссылка должна быть подписанной и не протухшей.
+  if (!isStaff) {
+    const exp = Number(req.nextUrl.searchParams.get("exp") ?? NaN);
+    const sig = String(req.nextUrl.searchParams.get("sig") ?? "");
+    if (!verifyDownload(decoded, exp, sig)) {
+      return NextResponse.json({ error: "Ссылка устарела" }, { status: 403 });
+    }
+  }
+
+  const filePath = path.join(process.cwd(), "data", "uploads", decoded);
+  let buf: Buffer;
   try {
-    const buf = await fs.readFile(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME[ext] ?? "application/octet-stream";
-    return new NextResponse(new Uint8Array(buf), {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${encodeURIComponent(decoded)}"`,
-        "Cache-Control": "private, max-age=0, must-revalidate",
-      },
-    });
+    buf = await fs.readFile(filePath);
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME[ext] ?? "application/octet-stream";
+
+  // Водяные знаки — только покупателям. Сотрудники получают оригинал.
+  if (!isStaff) {
+    const wm = { id: user.id, name: user.name, email: user.email };
+    try {
+      if (ext === ".pdf") buf = await watermarkPdf(buf, wm);
+      else if (ext === ".docx" || ext === ".pptx") buf = stampOfficeMeta(buf, wm);
+      else if (ext === ".txt") buf = watermarkTxt(buf, wm);
+    } catch (e: any) {
+      console.error("[uploads] watermark failed:", e.message);
+    }
+  }
+
+  return new NextResponse(new Uint8Array(buf), {
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `inline; filename="${encodeURIComponent(decoded)}"`,
+      "Cache-Control": "private, max-age=0, must-revalidate",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }

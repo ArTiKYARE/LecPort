@@ -8,8 +8,10 @@ import {
 } from "lucide-react";
 import { type LessonType } from "@/lib/types";
 import { useCatalog } from "@/lib/store";
-import { sectionSoftStyle, resolveSubjectColor, contrastOn, glassPanel } from "@/lib/sections";
+import { sectionSoftStyle, resolveSubjectColor, contrastOn, glassEnabled, cardTextColor } from "@/lib/sections";
+import { getIcon } from "@/lib/section-icons";
 import FavoriteButton from "@/components/FavoriteButton";
+import { CatalogCard } from "@/components/catalog-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +33,14 @@ const iconFor = (id: string) => TYPE_ICON[id] ?? BookOpen;
 const descFor = (id: string) => TYPE_DESC[id] ?? "Учебные материалы раздела";
 
 function CatalogInner() {
-  const { materials, subjects, sections, sectionColors, subjectColors, loading } = useCatalog();
+  const { materials, subjects, sections, organizations, sectionColors, subjectColors, loading } = useCatalog();
   const router = useRouter();
   const params = useSearchParams();
   const type = params.get("type") as LessonType | null;
   const subjectId = params.get("subject");
   const q = params.get("q") ?? "";
+
+  const orgName = (id?: string) => (id ? organizations.find((o) => o.id === id)?.name : "") ?? "";
 
   const validType = type && sections.some((s) => s.id === type) ? (type as LessonType) : null;
   const validSubject = subjectId && subjects.some((s) => s.id === subjectId) ? subjectId : null;
@@ -62,7 +66,7 @@ function CatalogInner() {
     return materials.filter((m) => {
       if (validType && m.lessonType !== validType) return false;
       if (validSubject && m.subjectId !== validSubject) return false;
-      if (q && !(m.title + " " + m.description).toLowerCase().includes(q.toLowerCase())) return false;
+      if (q && !(m.title + " " + m.description + " " + orgName(m.organizationId)).toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     });
   }, [materials, validType, validSubject, q]);
@@ -128,39 +132,32 @@ function CatalogInner() {
           <div className="grid gap-4 md:grid-cols-3">
             {sections.map((sec) => {
               const lt = sec.id;
-              const Icon = iconFor(lt);
+              const Icon = getIcon(sec.card?.icon) ?? iconFor(lt);
               const color = sectionColors[lt] ?? "#64748b";
-              const on = contrastOn(color);
+              const glass = glassEnabled(sec.card);
+              const on = cardTextColor(sec.card, color);
               return (
-                <div
+                <CatalogCard
                   key={lt}
-                  className="relative overflow-hidden rounded-lg transition-shadow hover:shadow-lg"
-                  style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)`, border: "1px solid rgba(255,255,255,0.25)" }}
-                >
-                  <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/15 blur-2xl" />
-                  <div aria-hidden className="pointer-events-none absolute -bottom-12 -left-8 size-36 rounded-full bg-black/10 blur-2xl" />
-                  <div className="relative space-y-3 p-5">
-                    <span
-                      className="flex size-11 items-center justify-center rounded-xl border backdrop-blur-sm"
-                      style={{ ...glassPanel(), color: on }}
-                    >
-                      <Icon className="size-5" />
-                    </span>
-                    <div>
-                      <div className="font-semibold" style={{ color: on }}>{typeName(lt)}</div>
-                      <div className="text-xs" style={{ color: on, opacity: 0.75 }}>
-                        {countByType[lt] ?? 0} мат. · {descFor(lt)}
-                      </div>
-                    </div>
+                  card={sec.card}
+                  color={color}
+                  icon={<Icon className="size-5" />}
+                  title={typeName(lt)}
+                  subtitle={`${countByType[lt] ?? 0} мат. · ${descFor(lt)}`}
+                  footer={
                     <button
                       onClick={() => setParam({ type: lt, subject: null })}
-                      className="action-btn flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium backdrop-blur-sm"
-                      style={{ backgroundColor: "rgba(255,255,255,0.92)", color: on === "#ffffff" ? color : "#0f172a" }}
+                      className={`action-btn flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium ${glass ? "backdrop-blur-sm" : ""}`}
+                      style={
+                        glass
+                          ? { backgroundColor: "rgba(255,255,255,0.92)", color: on === "#ffffff" ? color : "#0f172a" }
+                          : { backgroundColor: on === "#ffffff" ? color : `${color}EE`, color: on === "#ffffff" ? "#ffffff" : "#0f172a" }
+                      }
                     >
                       Выбрать раздел<ArrowRight className="size-4" />
                     </button>
-                  </div>
-                </div>
+                  }
+                />
               );
             })}
           </div>
@@ -194,37 +191,33 @@ function CatalogInner() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {subjectsForType.map((s) => {
               const sc = subjColor(s.id);
-              const on = contrastOn(sc);
+              const glass = glassEnabled(s.card);
+              const on = cardTextColor(s.card, sc);
+              const SubjIcon = getIcon(s.card?.icon) ?? BookOpen;
               return (
-                <div
-                  key={s.id}
-                  className={`relative overflow-hidden rounded-lg transition-shadow hover:shadow-lg ${s.count === 0 ? "opacity-60" : ""}`}
-                  style={{ background: `linear-gradient(135deg, ${sc}, ${sc}CC)`, border: "1px solid rgba(255,255,255,0.25)" }}
-                >
-                  <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-white/15 blur-2xl" />
-                  <div aria-hidden className="pointer-events-none absolute -bottom-10 -left-6 size-28 rounded-full bg-black/10 blur-2xl" />
-                  <div className="relative space-y-3 p-4">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border backdrop-blur-sm"
-                        style={{ ...glassPanel(), color: on }}
+                <div key={s.id} className={s.count === 0 ? "opacity-60" : ""}>
+                  <CatalogCard
+                    compact
+                    card={s.card}
+                    color={sc}
+                    icon={<SubjIcon className="size-4" />}
+                    title={s.name}
+                    subtitle={`${s.count} мат.`}
+                    footer={
+                      <button
+                        disabled={s.count === 0}
+                        onClick={() => setParam({ subject: s.id })}
+                        className={`action-btn flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:pointer-events-none disabled:opacity-50 ${glass ? "backdrop-blur-sm" : ""}`}
+                        style={
+                          glass
+                            ? { backgroundColor: "rgba(255,255,255,0.92)", color: on === "#ffffff" ? sc : "#0f172a" }
+                            : { backgroundColor: on === "#ffffff" ? sc : `${sc}EE`, color: on === "#ffffff" ? "#ffffff" : "#0f172a" }
+                        }
                       >
-                        <BookOpen className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold" style={{ color: on }}>{s.name}</div>
-                        <div className="text-xs" style={{ color: on, opacity: 0.75 }}>{s.count} мат.</div>
-                      </div>
-                    </div>
-                    <button
-                      disabled={s.count === 0}
-                      onClick={() => setParam({ subject: s.id })}
-                      className="action-btn flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium backdrop-blur-sm disabled:pointer-events-none disabled:opacity-50"
-                      style={{ backgroundColor: "rgba(255,255,255,0.92)", color: on === "#ffffff" ? sc : "#0f172a" }}
-                    >
-                      Открыть предмет
-                    </button>
-                  </div>
+                        Открыть предмет
+                      </button>
+                    }
+                  />
                 </div>
               );
             })}
@@ -282,7 +275,8 @@ function MaterialGrid({ items, subjName, typeName }: {
   subjName: (id: string) => string;
   typeName: (id: string) => string;
 }) {
-  const { sectionColors } = useCatalog();
+  const { sectionColors, organizations } = useCatalog();
+  const orgName = (id?: string) => (id ? organizations.find((o) => o.id === id)?.name : "") ?? "";
   if (!items.length) {
     return (
       <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Ничего не найдено. Попробуйте другой запрос.</CardContent></Card>
@@ -296,13 +290,20 @@ function MaterialGrid({ items, subjName, typeName }: {
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">{subjName(m.subjectId)}</Badge>
               <Badge variant="outline" style={sectionSoftStyle(sectionColors[m.lessonType] ?? "#64748b")}>{typeName(m.lessonType)}</Badge>
+              {m.price != null && m.price > 0 && <Badge variant="price">{m.price} ₽</Badge>}
+              {m.price != null && m.price === 0 && <Badge variant="outline">Бесплатно</Badge>}
             </div>
             <CardTitle className="pt-2 text-base leading-snug">{m.title}</CardTitle>
             <CardDescription className="line-clamp-2">{m.description}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-2 pt-0 text-xs text-muted-foreground">
             {m.fileName && <span className="inline-flex items-center gap-1"><FileText className="size-3" />{m.fileName}</span>}
-            {m.driveUrl && <span className="inline-flex items-center gap-1"><ExternalLink className="size-3" />Google Диск</span>}
+            {m.hasDrive && <span className="inline-flex items-center gap-1"><ExternalLink className="size-3" />Google Диск</span>}
+            {m.organizationId && orgName(m.organizationId) && (
+              <Link href={`/organization/${m.organizationId}`} className="inline-flex items-center gap-1 rounded px-1 py-0.5 font-medium text-primary hover:underline">
+                {orgName(m.organizationId)}
+              </Link>
+            )}
             <div className="ml-auto flex items-center gap-2">
               <FavoriteButton materialId={m.id} />
               <Button variant="ghost" size="sm" asChild>

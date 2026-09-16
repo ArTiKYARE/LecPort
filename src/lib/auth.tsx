@@ -11,6 +11,8 @@ export type SessionUser = {
   role: Exclude<Role, "guest">;
   hasSubscription: boolean;
   subscriptionPlan?: string;
+  subscriptionExpiresAt?: string;
+  cancelAtPeriodEnd?: boolean;
 };
 
 type AuthState = {
@@ -132,9 +134,12 @@ export function useAuth() {
   return ctx;
 }
 
-export function canAccessFull(role: Role, hasSubscription: boolean) {
+export function canAccessFull(role: Role, hasSubscription: boolean, expiresAt?: string) {
   if (role === "admin" || role === "moderator") return true;
-  if (role === "buyer" && hasSubscription) return true;
+  if (role === "buyer" && hasSubscription) {
+    if (!expiresAt) return true;
+    return new Date(expiresAt).getTime() > Date.now();
+  }
   return false;
 }
 

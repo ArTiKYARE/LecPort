@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Check, CreditCard, Loader2, RefreshCw } from "lucide-react";
+import { Check, CreditCard, Loader2, RefreshCw, Ban } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { PLANS, formatRub, planSavings, planName } from "@/lib/plans";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,12 +106,42 @@ export default function SubscriptionPage() {
 
       {hasSubscription && (
         <Card>
-          <CardContent className="flex flex-col gap-2 py-5 text-sm sm:flex-row sm:items-center">
-            <span>Тариф «{planName(user?.subscriptionPlan)}» активен.</span>
-            <Button variant="ghost" size="sm" className="action-btn sm:ml-auto" onClick={cancelSubscription}>Отменить подписку</Button>
+          <CardContent className="flex flex-col gap-2 py-5 text-sm">
+            {user?.subscriptionExpiresAt && (
+              <span className="text-muted-foreground">
+                Доступ до <span className="font-medium text-foreground">{new Date(user.subscriptionExpiresAt).toLocaleDateString("ru-RU")}</span>
+              </span>
+            )}
+            {user?.cancelAtPeriodEnd ? (
+              <span className="inline-flex items-center gap-2 text-amber-600 dark:text-amber-400"><Ban className="size-4" />Автопродление отключено. Доступ сохранится до конца оплаченного периода, деньги не возвращаем.</span>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <span>Тариф «{planName(user?.subscriptionPlan)}» активен. Оплаченный период открыт полностью.</span>
+                <Button variant="ghost" size="sm" className="action-btn sm:ml-auto" onClick={() => {
+                  if (window.confirm("Прекратить автоматические списания? Доступ сохранится до конца оплаченного периода. Деньги за него не возвращаются.")) cancelSubscription();
+                }}>
+                  <Ban />Прекратить списания
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
+
+      <Card className="border-dashed">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Правила использования</CardTitle>
+          <CardDescription>
+            Покупая доступ, вы соглашаетесь соблюдать условия. Материалы защищены персональным водяным знаком с вашим именем и почтой — пересылка и публикация файлов (включая скриншоты) запрещены.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1.5 text-sm text-muted-foreground">
+          <p>· Не передавайте файлы и ссылки третьим лицам и не публикуйте их в открытом доступе.</p>
+          <p>· Каждая копия помечена данными покупателя: утечка легко находится по метке.</p>
+          <p>· За нарушение доступ блокируется без возврата средств, аккаунт может быть удалён.</p>
+          <p>· Оплаченный период не возвращается при отмене автопродления.</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

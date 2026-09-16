@@ -1,12 +1,13 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
-import type { Material, Subject, Section, SectionColors } from "@/lib/types";
-import { SECTIONS_SEED, SECTION_COLORS_DEFAULT, MATERIALS_SEED, SUBJECTS_SEED } from "@/lib/types";
+import type { Material, Subject, Section, SectionColors, Organization } from "@/lib/types";
+import { SECTIONS_SEED, SECTION_COLORS_DEFAULT, MATERIALS_SEED, SUBJECTS_SEED, ORGANIZATION_SEED } from "@/lib/types";
 
 export type CatalogData = {
   sections: Section[];
   subjects: Subject[];
   materials: Material[];
+  organizations: Organization[];
   sectionColors: SectionColors;
   subjectColors: Record<string, string>;
 };
@@ -19,6 +20,7 @@ export function seedCatalog(): CatalogData {
     sections: SECTIONS_SEED,
     subjects: SUBJECTS_SEED,
     materials: MATERIALS_SEED,
+    organizations: ORGANIZATION_SEED,
     sectionColors: { ...SECTION_COLORS_DEFAULT },
     subjectColors: {},
   };
@@ -43,6 +45,7 @@ export async function readCatalog(): Promise<CatalogData> {
       sections: Array.isArray(j.sections) ? j.sections : seedCatalog().sections,
       subjects: Array.isArray(j.subjects) ? j.subjects : seedCatalog().subjects,
       materials: j.materials,
+      organizations: Array.isArray(j.organizations) ? j.organizations : [],
       sectionColors: { ...SECTION_COLORS_DEFAULT, ...(j.sectionColors ?? {}) },
       subjectColors: typeof j.subjectColors === "object" && j.subjectColors ? j.subjectColors : {},
     };

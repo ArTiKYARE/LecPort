@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenCheck, LayoutGrid, CreditCard, UserRound, ShieldCheck, LogOut, PenSquare, Heart, LogIn, UserPlus } from "lucide-react";
+import { BookOpenCheck, LayoutGrid, CreditCard, UserRound, ShieldCheck, LogOut, PenSquare, Heart, LogIn, UserPlus, Building2 } from "lucide-react";
 import { useAuth, ROLE_LABELS, canEditMaterials } from "@/lib/auth";
 import { planName } from "@/lib/plans";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/catalog", label: "Каталог", icon: LayoutGrid },
+  { href: "/organizations", label: "Продавцы", icon: Building2 },
   { href: "/favorites", label: "Избранное", icon: Heart },
   { href: "/subscription", label: "Подписка", icon: CreditCard },
   { href: "/cabinet", label: "Кабинет", icon: UserRound },
@@ -40,37 +41,6 @@ export default function Header() {
           </span>
           <span className="text-lg">LecPort</span>
         </Link>
-
-        <nav className="ml-4 hidden items-center gap-1 md:flex">
-          {NAV.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                  active && "bg-accent text-accent-foreground"
-                )}
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-          {showPanel && (
-            <Link
-              href="/admin"
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                pathname === "/admin" && "bg-accent text-accent-foreground"
-              )}
-            >
-              {isAdmin ? <ShieldCheck className="size-4" /> : <PenSquare className="size-4" />}
-              {panelLabel}
-            </Link>
-          )}
-        </nav>
 
         <div className="ml-auto flex items-center gap-2">
           {hasSubscription && (
@@ -107,7 +77,7 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="border-t md:hidden">
+      <div className="border-t lg:hidden">
         <div className="no-scrollbar mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-2">
           {NAV.map((item) => (
             <Link
